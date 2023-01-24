@@ -1,0 +1,15 @@
+[package]
+name = "rusted_pipe_examples"
+version = "0.1.0"
+authors = ["Simone Zandara <simone.zandara@gmail.com>"]
+edition = "2021"
+
+[lib]
+name = "rusted_pipe_examples"
+path = "src/lib.rs"
+
+[dependencies]
+opencv = "0.75"
+leptess = "0.13.2"
+rusted_pipe = { path = "../" }
+crossbeam = {version = "0.8.1"}
