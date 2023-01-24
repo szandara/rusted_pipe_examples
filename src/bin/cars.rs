@@ -2,14 +2,12 @@ use crossbeam::channel::Receiver;
 use rusted_pipe::graph::{Graph, Node};
 use rusted_pipe::packet::{ChannelID, WorkQueue};
 
-use rusted_pipe_examples::plate_detection::test_nodes::{
-    BoundinBoxRender, CarDetector, DnnOcrReader, OcrReader, VideoReader,
-};
-use std::{
-    sync::{Arc, Mutex},
-    thread,
-    time::Duration,
-};
+use rusted_pipe_examples::plate_detection::bounding_box_render::BoundinBoxRender;
+use rusted_pipe_examples::plate_detection::car_detector::CarDetector;
+use rusted_pipe_examples::plate_detection::dnn_ocr::DnnOcrReader;
+use rusted_pipe_examples::plate_detection::video_reader::VideoReader;
+
+use std::sync::{Arc, Mutex};
 
 fn setup_test() -> (Graph, Receiver<bool>) {
     let processor = VideoReader::default();
@@ -83,7 +81,7 @@ fn main() {
 
     graph.start();
     println!("Starting, waiting for video to end");
-    done_channel.recv();
+    done_channel.recv().unwrap();
     graph.stop();
     println!("Done");
 }

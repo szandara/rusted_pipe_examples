@@ -9,8 +9,7 @@ use std::{
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use rusted_pipe::{
     buffers::{
-        channel_buffers::BoundedBufferedData,
-        single_buffers::{FixedSizeBTree, RtRingBuffer},
+        channel_buffers::BoundedBufferedData, single_buffers::RtRingBuffer,
         synchronizers::TimestampSynchronizer,
     },
     channels::{ReadChannel, WriteChannel},

@@ -1313,6 +1313,7 @@ dependencies = [
  "leptess",
  "opencv",
  "rusted_pipe",
+ "spin_sleep",
 ]
 
 [[package]]
