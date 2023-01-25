@@ -25,14 +25,14 @@ use std::sync::Mutex;
 
 use crate::plate_detection::CarWithText;
 
-pub struct BoundinBoxRender {
+pub struct BoundingBoxRender {
     id: String,
     writer: VideoWriter,
 }
-impl BoundinBoxRender {
+impl BoundingBoxRender {
     pub fn default() -> Self {
         Self {
-            id: "BoundinBoxRender".to_string(),
+            id: "BoundingBoxRender".to_string(),
             writer: VideoWriter::new(
                 "output.avi",
                 VideoWriter::fourcc('M', 'J', 'P', 'G').unwrap(),
@@ -45,14 +45,14 @@ impl BoundinBoxRender {
     }
 }
 
-impl Drop for BoundinBoxRender {
+impl Drop for BoundingBoxRender {
     fn drop(&mut self) {
-        println!("Dropping BoundinBoxRender!");
+        println!("Dropping BoundingBoxRender!");
         self.writer.release().unwrap();
     }
 }
 
-impl Processor for BoundinBoxRender {
+impl Processor for BoundingBoxRender {
     fn handle(
         &mut self,
         mut _input: PacketSet,
@@ -136,5 +136,5 @@ impl Processor for BoundinBoxRender {
     }
 }
 
-unsafe impl Send for BoundinBoxRender {}
-unsafe impl Sync for BoundinBoxRender {}
+unsafe impl Send for BoundingBoxRender {}
+unsafe impl Sync for BoundingBoxRender {}

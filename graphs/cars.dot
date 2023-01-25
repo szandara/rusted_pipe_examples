@@ -1,0 +1,14 @@
+strict digraph test {
+    DnnOcrReader;
+    CarDetector;
+    VideoReader;
+    BoundingBoxRender;
+
+    VideoReader:"image" -> CarDetector:"image"
+    VideoReader:"image" -> DnnOcrReader:"image"
+
+    VideoReader:"image" -> BoundingBoxRender:"image"
+
+    DnnOcrReader:"plates" -> BoundingBoxRender:"plates"
+    CarDetector:"cars" -> BoundingBoxRender:"cars"
+}

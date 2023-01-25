@@ -18,7 +18,7 @@ use rusted_pipe::{
     DataVersion, RustedPipeError,
 };
 
-fn new_node(processor: impl Processor + 'static, work_queue: WorkQueue, is_source: bool) -> Node {
+fn new_node(processor: impl Processor + 'static, work_queue: WorkQueue) -> Node {
     let write_channel = WriteChannel::default();
     let read_channel = ReadChannel::new(
         Arc::new(Mutex::new(BoundedBufferedData::<RtRingBuffer>::new(
@@ -29,7 +29,6 @@ fn new_node(processor: impl Processor + 'static, work_queue: WorkQueue, is_sourc
     Node::new(
         Arc::new(Mutex::new(processor)),
         work_queue,
-        is_source,
         read_channel,
         write_channel,
     )
@@ -122,12 +121,12 @@ fn setup_default_test(
     consume_time_ms: u64,
     consumer_queue_strategy: WorkQueue,
 ) -> (Graph, Receiver<PacketSet>) {
-    let node0 = new_node(node0, WorkQueue::default(), true);
-    let node1 = new_node(node1, WorkQueue::default(), true);
+    let node0 = new_node(node0, WorkQueue::default());
+    let node1 = new_node(node1, WorkQueue::default());
 
     let (output, output_check) = unbounded();
     let process_terminal = TestNodeConsumer::new(output.clone(), consume_time_ms);
-    let process_terminal = new_node(process_terminal, consumer_queue_strategy, false);
+    let process_terminal = new_node(process_terminal, consumer_queue_strategy);
 
     let mut graph = Graph::new();
 

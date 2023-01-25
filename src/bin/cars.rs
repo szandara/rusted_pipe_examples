@@ -2,7 +2,7 @@ use crossbeam::channel::Receiver;
 use rusted_pipe::graph::{Graph, Node};
 use rusted_pipe::packet::{ChannelID, WorkQueue};
 
-use rusted_pipe_examples::plate_detection::bounding_box_render::BoundinBoxRender;
+use rusted_pipe_examples::plate_detection::bounding_box_render::BoundingBoxRender;
 use rusted_pipe_examples::plate_detection::car_detector::CarDetector;
 use rusted_pipe_examples::plate_detection::dnn_ocr::DnnOcrReader;
 use rusted_pipe_examples::plate_detection::video_reader::VideoReader;
@@ -12,16 +12,16 @@ use std::sync::{Arc, Mutex};
 fn setup_test() -> (Graph, Receiver<bool>) {
     let processor = VideoReader::default();
     let done_channel = processor.get_done_event();
-    let image_input = Node::default(Arc::new(Mutex::new(processor)), WorkQueue::default(), true);
+    let image_input = Node::default(Arc::new(Mutex::new(processor)), WorkQueue::default());
 
     let processor = CarDetector::default();
-    let detector = Node::default(Arc::new(Mutex::new(processor)), WorkQueue::new(2000), false);
+    let detector = Node::default(Arc::new(Mutex::new(processor)), WorkQueue::new(2000));
 
-    let processor = BoundinBoxRender::default();
-    let boundingbox = Node::default(Arc::new(Mutex::new(processor)), WorkQueue::new(2000), false);
+    let processor = BoundingBoxRender::default();
+    let boundingbox = Node::default(Arc::new(Mutex::new(processor)), WorkQueue::new(2000));
 
     let processor = DnnOcrReader::default();
-    let ocr = Node::default(Arc::new(Mutex::new(processor)), WorkQueue::new(2000), false);
+    let ocr = Node::default(Arc::new(Mutex::new(processor)), WorkQueue::new(2000));
 
     let mut graph = Graph::new();
 
@@ -42,7 +42,7 @@ fn setup_test() -> (Graph, Receiver<bool>) {
         .link(
             &"CarDetector".to_string(),
             &ChannelID::from("cars"),
-            &"BoundinBoxRender".to_string(),
+            &"BoundingBoxRender".to_string(),
             &ChannelID::from("cars"),
         )
         .unwrap();
@@ -51,7 +51,7 @@ fn setup_test() -> (Graph, Receiver<bool>) {
         .link(
             &"VideoReader".to_string(),
             &ChannelID::from("image"),
-            &"BoundinBoxRender".to_string(),
+            &"BoundingBoxRender".to_string(),
             &ChannelID::from("image"),
         )
         .unwrap();
@@ -69,7 +69,7 @@ fn setup_test() -> (Graph, Receiver<bool>) {
         .link(
             &"DnnOcrReader".to_string(),
             &ChannelID::from("plates"),
-            &"BoundinBoxRender".to_string(),
+            &"BoundingBoxRender".to_string(),
             &ChannelID::from("plates"),
         )
         .unwrap();
