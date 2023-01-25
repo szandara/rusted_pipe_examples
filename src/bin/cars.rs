@@ -1,4 +1,3 @@
-use crossbeam::channel::Receiver;
 use rusted_pipe::graph::{Graph, Node};
 use rusted_pipe::packet::{ChannelID, WorkQueue};
 
@@ -9,9 +8,8 @@ use rusted_pipe_examples::plate_detection::video_reader::VideoReader;
 
 use std::sync::{Arc, Mutex};
 
-fn setup_test() -> (Graph, Receiver<bool>) {
+fn setup_test() -> Graph {
     let processor = VideoReader::default();
-    let done_channel = processor.get_done_event();
     let image_input = Node::default(Arc::new(Mutex::new(processor)), WorkQueue::default());
 
     let processor = CarDetector::default();
@@ -73,15 +71,14 @@ fn setup_test() -> (Graph, Receiver<bool>) {
             &ChannelID::from("plates"),
         )
         .unwrap();
-    return (graph, done_channel);
+    graph
 }
 
 fn main() {
-    let (mut graph, done_channel) = setup_test();
+    let mut graph = setup_test();
 
     graph.start();
     println!("Starting, waiting for video to end");
-    done_channel.recv().unwrap();
-    graph.stop();
+    graph.stop(true);
     println!("Done");
 }

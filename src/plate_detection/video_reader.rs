@@ -1,6 +1,3 @@
-use crossbeam::channel::unbounded;
-use crossbeam::channel::Receiver;
-use crossbeam::channel::Sender;
 use opencv::core::Size;
 
 use opencv::imgproc::resize;
@@ -31,28 +28,19 @@ pub struct VideoReader {
     fps_control: Instant,
     fps_wait: Duration,
     fps: u64,
-    done_event_: Sender<bool>,
-    done_event: Receiver<bool>,
 }
 impl VideoReader {
     pub fn default() -> Self {
         let capture =
             VideoCapture::from_file("data/210112_01_Covid Oxford_4k_061.mp4", CAP_ANY).unwrap();
         let fps = 2;
-        let (done_event_, done_event) = unbounded();
         Self {
             id: "VideoReader".to_string(),
             capture,
             fps_control: Instant::now(),
             fps_wait: Duration::from_millis(1000 / fps),
             fps,
-            done_event_,
-            done_event,
         }
-    }
-
-    pub fn get_done_event(&self) -> Receiver<bool> {
-        self.done_event.clone()
     }
 }
 
@@ -66,8 +54,7 @@ impl Processor for VideoReader {
         let grabbed = self.capture.read(&mut image).unwrap();
 
         if !grabbed || image.empty() {
-            self.done_event_.send(true).unwrap();
-            return Ok(());
+            return Err(RustedPipeError::EndOfStream());
         }
 
         let mut image_resized = Mat::default();

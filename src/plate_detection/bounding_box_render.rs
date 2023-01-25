@@ -65,7 +65,7 @@ impl Processor for BoundingBoxRender {
             .get_channel_owned::<Vec<CarWithText>>(&ChannelID::from("plates"))
             .unwrap();
         let bboxes = bboxes_packet.data.as_mut();
-        //bboxes.extend(plates_packet.data.as_ref());
+
         let mut image = _input
             .get_channel_owned::<Mat>(&ChannelID::from("image"))
             .unwrap();

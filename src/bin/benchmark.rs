@@ -193,5 +193,5 @@ fn main() {
         packets,
         start.elapsed().as_millis()
     );
-    graph.stop();
+    graph.stop(false);
 }
