@@ -104,14 +104,11 @@ fn setup_test() -> Graph {
     );
 
     let mut graph = Graph::new();
-    graph.start_node(Nodes::NodeHandler(Box::new(ocr_detector_node)));
-    graph.start_node::<ReadChannel3<Vector<Rect>, Vec<CarWithText>, Mat>, WriteChannel1<String>>(
-        Nodes::TerminalHandler(Box::new(bbox_reader_node)),
-    );
-    graph.start_node(Nodes::NodeHandler(Box::new(car_detector_node)));
-    graph.start_node::<NoBuffer, WriteChannel1<Mat>>(Nodes::SourceHandler(Box::new(
-        video_input_node,
-    )));
+    graph.start_node(ocr_detector_node);
+    graph.start_terminal_node(bbox_reader_node);
+
+    graph.start_node(car_detector_node);
+    graph.start_source_node(video_input_node);
 
     graph
 }
