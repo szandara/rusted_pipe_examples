@@ -2,7 +2,6 @@ use opencv::core::Point;
 use opencv::core::Rect;
 use opencv::core::Scalar;
 use opencv::core::Size;
-use opencv::core::ToInputOutputArray;
 use opencv::core::Vector;
 use opencv::imgproc::put_text;
 use opencv::imgproc::FONT_HERSHEY_PLAIN;
@@ -12,16 +11,10 @@ use opencv::prelude::Mat;
 
 use opencv::videoio::VideoWriter;
 use opencv::videoio::VideoWriterTrait;
-
-use rusted_pipe::channels::ChannelID;
-use rusted_pipe::channels::WriteChannel;
-use rusted_pipe::graph::Processor;
-use rusted_pipe::packet::PacketSet;
-
+use rusted_pipe::channels::typed_read_channel::ReadChannel3;
+use rusted_pipe::graph::processor::TerminalProcessor;
+use rusted_pipe::packet::typed::ReadChannel3PacketSet;
 use rusted_pipe::RustedPipeError;
-
-use std::sync::Arc;
-use std::sync::Mutex;
 
 use crate::plate_detection::CarWithText;
 
@@ -52,28 +45,22 @@ impl Drop for BoundingBoxRender {
     }
 }
 
-impl Processor for BoundingBoxRender {
+impl TerminalProcessor<ReadChannel3<Vector<Rect>, Vec<CarWithText>, Mat>> for BoundingBoxRender {
     fn handle(
         &mut self,
-        mut _input: PacketSet,
-        _output_channel: Arc<Mutex<WriteChannel>>,
+        mut input: ReadChannel3PacketSet<Vector<Rect>, Vec<CarWithText>, Mat>,
     ) -> Result<(), RustedPipeError> {
-        let mut bboxes_packet = _input
-            .get_channel_owned::<Vector<Rect>>(&ChannelID::from("cars"))
-            .unwrap();
-        let plates_packet = _input
-            .get_channel_owned::<Vec<CarWithText>>(&ChannelID::from("plates"))
-            .unwrap();
-        let bboxes = bboxes_packet.data.as_mut();
+        let mut image = input.c3_owned().unwrap();
 
-        let mut image = _input
-            .get_channel_owned::<Mat>(&ChannelID::from("image"))
-            .unwrap();
+        let bboxes_packet = input.c1_owned().unwrap();
+        let plates_packet = input.c2().unwrap();
+        let bboxes = bboxes_packet.data;
+
         let color = Scalar::from((255.0, 0.0, 0.0));
         let color_red = Scalar::from((0.0, 255.0, 0.0));
         let thikness_px = 2;
 
-        let mut im_array = image.data.input_output_array().unwrap();
+        //let mut im_array = image.data;
 
         for bbox_i in 0..bboxes.len() {
             let bbox = bboxes.get(bbox_i).unwrap();
@@ -84,7 +71,7 @@ impl Processor for BoundingBoxRender {
                 if intersection.size() == plate.car.size() {
                     let header = Rect::new(bbox.x, bbox.y, bbox.width, 20);
                     rectangle(
-                        &mut im_array,
+                        &mut image.data,
                         header,
                         color,
                         -1,
@@ -93,7 +80,7 @@ impl Processor for BoundingBoxRender {
                     )
                     .unwrap();
                     rectangle(
-                        &mut im_array,
+                        &mut image.data,
                         plate.car,
                         color_red,
                         thikness_px,
@@ -102,7 +89,7 @@ impl Processor for BoundingBoxRender {
                     )
                     .unwrap();
                     put_text(
-                        &mut im_array,
+                        &mut image.data,
                         plate_text,
                         Point::new(bbox.x, bbox.y + 20),
                         FONT_HERSHEY_PLAIN,
@@ -117,7 +104,7 @@ impl Processor for BoundingBoxRender {
             }
 
             rectangle(
-                &mut im_array,
+                &mut image.data,
                 bbox,
                 color,
                 thikness_px,
@@ -127,7 +114,7 @@ impl Processor for BoundingBoxRender {
             .unwrap();
         }
 
-        self.writer.write(&im_array).unwrap();
+        self.writer.write(&image.data).unwrap();
         Ok(())
     }
 

@@ -5,7 +5,7 @@ pub mod video_reader;
 use opencv::core::Rect;
 
 #[derive(Clone)]
-struct CarWithText {
+pub struct CarWithText {
     plate: Option<String>,
     car: Rect,
 }

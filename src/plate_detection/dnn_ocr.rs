@@ -34,18 +34,17 @@ use opencv::prelude::TextDetectionModelTraitConst;
 use opencv::prelude::TextRecognitionModelTrait;
 use opencv::prelude::TextRecognitionModelTraitConst;
 
-use rusted_pipe::channels::ChannelID;
-use rusted_pipe::channels::WriteChannel;
-use rusted_pipe::graph::Processor;
-use rusted_pipe::packet::PacketSet;
-
+use rusted_pipe::channels::typed_read_channel::ReadChannel1;
+use rusted_pipe::channels::typed_write_channel::TypedWriteChannel;
+use rusted_pipe::channels::typed_write_channel::WriteChannel1;
+use rusted_pipe::graph::processor::Processor;
+use rusted_pipe::packet::typed::ReadChannel1PacketSet;
 use rusted_pipe::RustedPipeError;
 
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::MutexGuard;
 
 pub struct DnnOcrReader {
     id: String,
@@ -134,14 +133,15 @@ impl DnnOcrReader {
 unsafe impl Send for DnnOcrReader {}
 unsafe impl Sync for DnnOcrReader {}
 
-impl Processor for DnnOcrReader {
+impl Processor<ReadChannel1<Mat>> for DnnOcrReader {
+    type WRITE = WriteChannel1<Vec<CarWithText>>;
     fn handle(
         &mut self,
-        mut _input: PacketSet,
-        output_channel: Arc<Mutex<WriteChannel>>,
+        input: ReadChannel1PacketSet<Mat>,
+        mut output_channel: MutexGuard<TypedWriteChannel<Self::WRITE>>,
     ) -> Result<(), RustedPipeError> {
-        let mut image_packet = _input.get_owned::<Mat>(0).unwrap();
-        let image = image_packet.data.as_mut();
+        let image_packet = input.c1().unwrap();
+        let image = &image_packet.data;
         let mut grey = Mat::default();
         cvt_color(image, &mut grey, COLOR_BGR2GRAY, 0).unwrap();
 
@@ -149,7 +149,7 @@ impl Processor for DnnOcrReader {
         self.network.detect(image, &mut output).unwrap();
 
         let mut out_rect: Vec<CarWithText> = vec![];
-
+        println!("Processing OCR frame");
         for r in output {
             let rect = Rect::new(
                 r.get(1).unwrap().x,
@@ -170,9 +170,9 @@ impl Processor for DnnOcrReader {
         }
 
         output_channel
-            .lock()
-            .unwrap()
-            .write(&ChannelID::from("plates"), out_rect, &image_packet.version)
+            .writer
+            .c1()
+            .write(out_rect, &image_packet.version)
             .unwrap();
 
         Ok(())

@@ -22,15 +22,14 @@ use opencv::prelude::MatTraitConst;
 
 use opencv::prelude::NetTrait;
 use opencv::prelude::NetTraitConst;
-use rusted_pipe::channels::ChannelID;
-use rusted_pipe::channels::WriteChannel;
-use rusted_pipe::graph::Processor;
-use rusted_pipe::packet::PacketSet;
-
+use rusted_pipe::channels::typed_read_channel::ReadChannel1;
+use rusted_pipe::channels::typed_write_channel::TypedWriteChannel;
+use rusted_pipe::channels::typed_write_channel::WriteChannel1;
+use rusted_pipe::graph::processor::Processor;
+use rusted_pipe::packet::typed::ReadChannel1PacketSet;
 use rusted_pipe::RustedPipeError;
 
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::MutexGuard;
 
 pub struct CarDetector {
     classifier: Net,
@@ -114,15 +113,15 @@ impl CarDetector {
 unsafe impl Send for CarDetector {}
 unsafe impl Sync for CarDetector {}
 
-impl Processor for CarDetector {
+impl Processor<ReadChannel1<Mat>> for CarDetector {
+    type WRITE = WriteChannel1<Vector<Rect>>;
     fn handle(
         &mut self,
-        mut _input: PacketSet,
-        output_channel: Arc<Mutex<WriteChannel>>,
+        input: ReadChannel1PacketSet<Mat>,
+        mut output_channel: MutexGuard<TypedWriteChannel<WriteChannel1<Vector<Rect>>>>,
     ) -> Result<(), RustedPipeError> {
-        let mut image_packet = _input.get_owned::<Mat>(0).unwrap();
-        let image = image_packet.data.as_mut();
-
+        let image_packet = &input.c1().unwrap();
+        let image = &image_packet.data;
         let input_size = 416;
 
         let mut blob = blob_from_image(
@@ -149,9 +148,9 @@ impl Processor for CarDetector {
 
         //let out = Vector::<Rect>::default();
         output_channel
-            .lock()
-            .unwrap()
-            .write(&ChannelID::from("cars"), out, &image_packet.version)
+            .writer
+            .c1()
+            .write(out, &image_packet.version)
             .unwrap();
 
         Ok(())

@@ -9,15 +9,13 @@ use opencv::prelude::VideoCaptureTrait;
 use opencv::videoio::VideoCapture;
 
 use opencv::videoio::CAP_ANY;
-use rusted_pipe::channels::ChannelID;
-use rusted_pipe::channels::WriteChannel;
-use rusted_pipe::graph::Processor;
-use rusted_pipe::packet::PacketSet;
+use rusted_pipe::channels::typed_write_channel::TypedWriteChannel;
+use rusted_pipe::channels::typed_write_channel::WriteChannel1;
+use rusted_pipe::graph::processor::SourceProcessor;
 use rusted_pipe::DataVersion;
 use rusted_pipe::RustedPipeError;
 
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::MutexGuard;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
@@ -44,11 +42,11 @@ impl VideoReader {
     }
 }
 
-impl Processor for VideoReader {
+impl SourceProcessor for VideoReader {
+    type WRITE = WriteChannel1<Mat>;
     fn handle(
         &mut self,
-        mut _input: PacketSet,
-        output_channel: Arc<Mutex<WriteChannel>>,
+        mut output_channel: MutexGuard<TypedWriteChannel<Self::WRITE>>,
     ) -> Result<(), RustedPipeError> {
         let mut image = Mat::default();
         let grabbed = self.capture.read(&mut image).unwrap();
@@ -68,13 +66,9 @@ impl Processor for VideoReader {
         )
         .unwrap();
         output_channel
-            .lock()
-            .unwrap()
-            .write(
-                &ChannelID::from("image"),
-                image_resized,
-                &DataVersion::from_now(),
-            )
+            .writer
+            .c1()
+            .write(image_resized, &DataVersion::from_now())
             .unwrap();
         let elapsed = self.fps_control.elapsed();
 
