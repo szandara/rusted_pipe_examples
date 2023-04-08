@@ -22,14 +22,12 @@ use opencv::prelude::MatTraitConst;
 
 use opencv::prelude::NetTrait;
 use opencv::prelude::NetTraitConst;
+use rusted_pipe::channels::read_channel::InputGenerator;
 use rusted_pipe::channels::typed_read_channel::ReadChannel1;
-use rusted_pipe::channels::typed_write_channel::TypedWriteChannel;
 use rusted_pipe::channels::typed_write_channel::WriteChannel1;
 use rusted_pipe::graph::processor::Processor;
-use rusted_pipe::packet::typed::ReadChannel1PacketSet;
+use rusted_pipe::graph::processor::ProcessorWriter;
 use rusted_pipe::RustedPipeError;
-
-use std::sync::MutexGuard;
 
 pub struct CarDetector {
     classifier: Net,
@@ -113,14 +111,16 @@ impl CarDetector {
 unsafe impl Send for CarDetector {}
 unsafe impl Sync for CarDetector {}
 
-impl Processor<ReadChannel1<Mat>> for CarDetector {
-    type WRITE = WriteChannel1<Vector<Rect>>;
+impl Processor for CarDetector {
+    type OUTPUT = WriteChannel1<Vector<Rect>>;
+    type INPUT = ReadChannel1<Mat>;
     fn handle(
         &mut self,
-        input: ReadChannel1PacketSet<Mat>,
-        mut output_channel: MutexGuard<TypedWriteChannel<WriteChannel1<Vector<Rect>>>>,
+        input: <Self::INPUT as InputGenerator>::INPUT,
+        mut output: ProcessorWriter<Self::OUTPUT>,
     ) -> Result<(), RustedPipeError> {
         let image_packet = &input.c1().unwrap();
+        println!("CAR Image {}", image_packet.version.timestamp);
         let image = &image_packet.data;
         let input_size = 416;
 
@@ -142,12 +142,14 @@ impl Processor<ReadChannel1<Mat>> for CarDetector {
 
         let output_names = self.classifier.get_unconnected_out_layers_names().unwrap();
 
-        let mut output = Vector::<Mat>::default();
-        self.classifier.forward(&mut output, &output_names).unwrap();
-        let out = self.post_process(image.rows(), image.cols(), &output);
+        let mut output_values = Vector::<Mat>::default();
+        self.classifier
+            .forward(&mut output_values, &output_names)
+            .unwrap();
+        let out = self.post_process(image.rows(), image.cols(), &output_values);
 
         //let out = Vector::<Rect>::default();
-        output_channel
+        output
             .writer
             .c1()
             .write(out, &image_packet.version)

@@ -35,16 +35,15 @@ use opencv::prelude::TextRecognitionModelTrait;
 use opencv::prelude::TextRecognitionModelTraitConst;
 
 use rusted_pipe::channels::typed_read_channel::ReadChannel1;
-use rusted_pipe::channels::typed_write_channel::TypedWriteChannel;
 use rusted_pipe::channels::typed_write_channel::WriteChannel1;
 use rusted_pipe::graph::processor::Processor;
+use rusted_pipe::graph::processor::ProcessorWriter;
 use rusted_pipe::packet::typed::ReadChannel1PacketSet;
 use rusted_pipe::RustedPipeError;
 
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::sync::MutexGuard;
 
 pub struct DnnOcrReader {
     id: String,
@@ -133,24 +132,25 @@ impl DnnOcrReader {
 unsafe impl Send for DnnOcrReader {}
 unsafe impl Sync for DnnOcrReader {}
 
-impl Processor<ReadChannel1<Mat>> for DnnOcrReader {
-    type WRITE = WriteChannel1<Vec<CarWithText>>;
+impl Processor for DnnOcrReader {
+    type INPUT = ReadChannel1<Mat>;
+    type OUTPUT = WriteChannel1<Vec<CarWithText>>;
     fn handle(
         &mut self,
         input: ReadChannel1PacketSet<Mat>,
-        mut output_channel: MutexGuard<TypedWriteChannel<Self::WRITE>>,
+        mut output: ProcessorWriter<Self::OUTPUT>,
     ) -> Result<(), RustedPipeError> {
         let image_packet = input.c1().unwrap();
+        println!("OCR Image {}", image_packet.version.timestamp);
         let image = &image_packet.data;
         let mut grey = Mat::default();
         cvt_color(image, &mut grey, COLOR_BGR2GRAY, 0).unwrap();
 
-        let mut output = Vector::<Vector<Point>>::default();
-        self.network.detect(image, &mut output).unwrap();
+        let mut output_data = Vector::<Vector<Point>>::default();
+        self.network.detect(image, &mut output_data).unwrap();
 
         let mut out_rect: Vec<CarWithText> = vec![];
-        println!("Processing OCR frame");
-        for r in output {
+        for r in output_data {
             let rect = Rect::new(
                 r.get(1).unwrap().x,
                 r.get(1).unwrap().y,
@@ -169,7 +169,7 @@ impl Processor<ReadChannel1<Mat>> for DnnOcrReader {
             }
         }
 
-        output_channel
+        output
             .writer
             .c1()
             .write(out_rect, &image_packet.version)

@@ -9,13 +9,12 @@ use opencv::prelude::VideoCaptureTrait;
 use opencv::videoio::VideoCapture;
 
 use opencv::videoio::CAP_ANY;
-use rusted_pipe::channels::typed_write_channel::TypedWriteChannel;
 use rusted_pipe::channels::typed_write_channel::WriteChannel1;
+use rusted_pipe::graph::processor::ProcessorWriter;
 use rusted_pipe::graph::processor::SourceProcessor;
 use rusted_pipe::DataVersion;
 use rusted_pipe::RustedPipeError;
 
-use std::sync::MutexGuard;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
@@ -31,7 +30,7 @@ impl VideoReader {
     pub fn default() -> Self {
         let capture =
             VideoCapture::from_file("data/210112_01_Covid Oxford_4k_061.mp4", CAP_ANY).unwrap();
-        let fps = 2;
+        let fps = 20;
         Self {
             id: "VideoReader".to_string(),
             capture,
@@ -43,11 +42,8 @@ impl VideoReader {
 }
 
 impl SourceProcessor for VideoReader {
-    type WRITE = WriteChannel1<Mat>;
-    fn handle(
-        &mut self,
-        mut output_channel: MutexGuard<TypedWriteChannel<Self::WRITE>>,
-    ) -> Result<(), RustedPipeError> {
+    type OUTPUT = WriteChannel1<Mat>;
+    fn handle(&mut self, mut output: ProcessorWriter<Self::OUTPUT>) -> Result<(), RustedPipeError> {
         let mut image = Mat::default();
         let grabbed = self.capture.read(&mut image).unwrap();
 
@@ -65,16 +61,15 @@ impl SourceProcessor for VideoReader {
             INTER_LINEAR,
         )
         .unwrap();
-        output_channel
-            .writer
-            .c1()
-            .write(image_resized, &DataVersion::from_now())
-            .unwrap();
+        let frame_ts = DataVersion::from_now();
+        println!("Frame {}", frame_ts.timestamp);
+        output.writer.c1().write(image_resized, &frame_ts).unwrap();
         let elapsed = self.fps_control.elapsed();
 
         if self.fps_wait > elapsed {
             thread::sleep(self.fps_wait - elapsed);
         }
+
         self.fps_control = Instant::now();
         Ok(())
     }
