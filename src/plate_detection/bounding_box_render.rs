@@ -13,7 +13,9 @@ use opencv::videoio::VideoWriter;
 use opencv::videoio::VideoWriterTrait;
 use rusted_pipe::channels::read_channel::InputGenerator;
 use rusted_pipe::channels::typed_read_channel::ReadChannel3;
-use rusted_pipe::graph::processor::TerminalProcessor;
+use rusted_pipe::channels::typed_write_channel::WriteChannel1;
+use rusted_pipe::graph::processor::Processor;
+use rusted_pipe::graph::processor::ProcessorWriter;
 use rusted_pipe::RustedPipeError;
 
 use crate::plate_detection::CarWithText;
@@ -45,11 +47,13 @@ impl Drop for BoundingBoxRender {
     }
 }
 
-impl TerminalProcessor for BoundingBoxRender {
+impl Processor for BoundingBoxRender {
     type INPUT = ReadChannel3<Vector<Rect>, Vec<CarWithText>, Mat>;
+    type OUTPUT = WriteChannel1<Mat>;
     fn handle(
         &mut self,
         mut input: <Self::INPUT as InputGenerator>::INPUT,
+        mut output: ProcessorWriter<Self::OUTPUT>,
     ) -> Result<(), RustedPipeError> {
         if let Some(image) = input.c3() {
             println!("Render Image {}", image.version.timestamp);
@@ -127,6 +131,11 @@ impl TerminalProcessor for BoundingBoxRender {
         }
 
         self.writer.write(&image.data).unwrap();
+        output
+            .writer
+            .c1()
+            .write(image.data, &image.version)
+            .expect("Cannot write to output buffer");
         Ok(())
     }
 

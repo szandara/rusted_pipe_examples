@@ -2,6 +2,8 @@ pub mod bounding_box_render;
 pub mod car_detector;
 pub mod dnn_ocr;
 pub mod video_reader;
+pub mod rtp_sink;
+
 use opencv::core::Rect;
 
 #[derive(Clone)]

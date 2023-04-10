@@ -12,7 +12,7 @@ use rusted_pipe::{
 use rusted_pipe_examples::plate_detection::dnn_ocr::DnnOcrReader;
 use rusted_pipe_examples::plate_detection::video_reader::VideoReader;
 use rusted_pipe_examples::plate_detection::{
-    bounding_box_render::BoundingBoxRender, car_detector::CarDetector,
+    bounding_box_render::BoundingBoxRender, car_detector::CarDetector, rtp_sink::RtpSink,
 };
 
 fn setup_test() -> Graph {
@@ -22,7 +22,7 @@ fn setup_test() -> Graph {
     let mut video_input_node =
         SourceNode::create_common("video_input".to_string(), Box::new(VideoReader::default()));
 
-    let realtime_synch = RealTimeSynchronizer::new(1000, false, true);
+    let realtime_synch = RealTimeSynchronizer::new(100, false, true);
     let timestamp_synch = TimestampSynchronizer::default();
 
     // Node that performs bounding box detection for cars
@@ -46,9 +46,19 @@ fn setup_test() -> Graph {
     );
 
     // Node that collects the inferred information and overlays it on top of the original video.
-    let bbox_render_node = TerminalNode::create_common(
+    let mut bbox_render_node = Node::create_common(
         "bbox_render".to_string(),
         Box::new(BoundingBoxRender::default()),
+        false,
+        2000,
+        1,
+        SynchronizerTypes::REALTIME(realtime_synch.clone()),
+    );
+
+    // Node that collects the inferred information and overlays it on top of the original video.
+    let rtp_node = TerminalNode::create_common(
+        "rtp".to_string(),
+        Box::new(RtpSink::new(20)),
         false,
         2000,
         1,
@@ -100,12 +110,20 @@ fn setup_test() -> Graph {
     )
     .unwrap();
 
+    // BoundingBox -> Rtp
+    rusted_pipe::graph::graph::link(
+        bbox_render_node.write_channel.writer.c1(),
+        rtp_node.read_channel.channels.lock().unwrap().c1(),
+    )
+    .unwrap();
+
     // Create the graph objects and start the graph scheduler
     let mut graph = Graph::new();
 
     // We need to start each node independently
+    graph.start_terminal_node(rtp_node);
     graph.start_node(ocr_detector_node);
-    graph.start_terminal_node(bbox_render_node);
+    graph.start_node(bbox_render_node);
     graph.start_node(car_detector_node);
     graph.start_source_node(video_input_node);
 
