@@ -52,7 +52,7 @@ impl RtpSink {
             .and_dynamic_cast::<gstreamer_app::AppSrc>()
             .expect("Cannot create AppSrc");
 
-        app_src.set_caps(Some(&create_caps(640, 480, 20)));
+        app_src.set_caps(Some(&create_caps(640, 480, fps)));
         app_src.set_format(gstreamer::Format::Time);
         let id = "rtp_sink".to_string();
 

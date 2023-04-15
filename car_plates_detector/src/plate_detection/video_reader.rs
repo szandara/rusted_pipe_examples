@@ -24,19 +24,23 @@ pub struct VideoReader {
     capture: VideoCapture,
     fps_control: Instant,
     fps_wait: Duration,
-    fps: u64,
+    _fps: u64,
+    do_loop: bool,
+}
+
+fn make_video() -> VideoCapture {
+    VideoCapture::from_file("data/210112_01_Covid Oxford_4k_061.mp4", CAP_ANY).unwrap()
 }
 impl VideoReader {
-    pub fn default() -> Self {
-        let capture =
-            VideoCapture::from_file("data/210112_01_Covid Oxford_4k_061.mp4", CAP_ANY).unwrap();
+    pub fn default(do_loop: bool) -> Self {
         let fps = 20;
         Self {
             id: "VideoReader".to_string(),
-            capture,
+            capture: make_video(),
             fps_control: Instant::now(),
             fps_wait: Duration::from_millis(1000 / fps),
-            fps,
+            _fps: fps,
+            do_loop,
         }
     }
 }
@@ -48,7 +52,12 @@ impl SourceProcessor for VideoReader {
         let grabbed = self.capture.read(&mut image).unwrap();
 
         if !grabbed || image.empty() {
-            return Err(RustedPipeError::EndOfStream());
+            if self.do_loop {
+                self.capture = make_video();
+                self.capture.read(&mut image).unwrap();
+            } else {
+                return Err(RustedPipeError::EndOfStream());
+            }
         }
 
         let mut image_resized = Mat::default();

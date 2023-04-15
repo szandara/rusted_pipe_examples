@@ -1,37 +1,36 @@
 use std::{thread, time::Duration};
 
+use car_plates_detector::plate_detection::dnn_ocr::DnnOcrReader;
+use car_plates_detector::plate_detection::video_reader::VideoReader;
+use car_plates_detector::plate_detection::{
+    bounding_box_render::BoundingBoxRender, car_detector::CarDetector,
+};
 use rusted_pipe::{
-    buffers::synchronizers::{
-        real_time::RealTimeSynchronizer, timestamp::TimestampSynchronizer, SynchronizerTypes,
-    },
+    buffers::synchronizers::{timestamp::TimestampSynchronizer, SynchronizerTypes},
     graph::{
         graph::Graph,
-        processor::{Node, SourceNode, TerminalNode},
+        processor::{Node, SourceNode},
     },
-};
-use rusted_pipe_examples::plate_detection::dnn_ocr::DnnOcrReader;
-use rusted_pipe_examples::plate_detection::video_reader::VideoReader;
-use rusted_pipe_examples::plate_detection::{
-    bounding_box_render::BoundingBoxRender, car_detector::CarDetector, rtp_sink::RtpSink,
 };
 
 fn setup_test() -> Graph {
     // Create the nodes
 
     // Node that reads the data from the input file
-    let mut video_input_node =
-        SourceNode::create_common("video_input".to_string(), Box::new(VideoReader::default()));
+    let mut video_input_node = SourceNode::create_common(
+        "video_input".to_string(),
+        Box::new(VideoReader::default(false)),
+    );
 
-    let realtime_synch = RealTimeSynchronizer::new(100, false, true);
     let timestamp_synch = TimestampSynchronizer::default();
 
     // Node that performs bounding box detection for cars
     let mut car_detector_node = Node::create_common(
         "car_detector".to_string(),
         Box::new(CarDetector::default()),
-        false,
-        1,
-        1,
+        true,
+        3000,
+        3000,
         SynchronizerTypes::TIMESTAMP(timestamp_synch.clone()),
     );
 
@@ -39,30 +38,20 @@ fn setup_test() -> Graph {
     let mut ocr_detector_node = Node::create_common(
         "ocr_detector".to_string(),
         Box::new(DnnOcrReader::default()),
-        false,
-        1,
-        1,
+        true,
+        3000,
+        3000,
         SynchronizerTypes::TIMESTAMP(timestamp_synch.clone()),
     );
 
     // Node that collects the inferred information and overlays it on top of the original video.
-    let mut bbox_render_node = Node::create_common(
+    let bbox_render_node = Node::create_common(
         "bbox_render".to_string(),
-        Box::new(BoundingBoxRender::default()),
-        false,
-        2000,
-        1,
-        SynchronizerTypes::REALTIME(realtime_synch.clone()),
-    );
-
-    // Node that collects the inferred information and overlays it on top of the original video.
-    let rtp_node = TerminalNode::create_common(
-        "rtp".to_string(),
-        Box::new(RtpSink::new(20)),
-        false,
-        2000,
-        1,
-        SynchronizerTypes::REALTIME(realtime_synch.clone()),
+        Box::new(BoundingBoxRender::with_save_to_file()),
+        true,
+        5000,
+        5000,
+        SynchronizerTypes::TIMESTAMP(timestamp_synch.clone()),
     );
 
     // Link nodes together to form a graph.
@@ -110,18 +99,10 @@ fn setup_test() -> Graph {
     )
     .unwrap();
 
-    // BoundingBox -> Rtp
-    rusted_pipe::graph::graph::link(
-        bbox_render_node.write_channel.writer.c1(),
-        rtp_node.read_channel.channels.lock().unwrap().c1(),
-    )
-    .unwrap();
-
     // Create the graph objects and start the graph scheduler
     let mut graph = Graph::new();
 
     // We need to start each node independently
-    graph.start_terminal_node(rtp_node);
     graph.start_node(ocr_detector_node);
     graph.start_node(bbox_render_node);
     graph.start_node(car_detector_node);

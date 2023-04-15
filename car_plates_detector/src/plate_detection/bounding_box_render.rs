@@ -22,20 +22,29 @@ use crate::plate_detection::CarWithText;
 
 pub struct BoundingBoxRender {
     id: String,
-    writer: VideoWriter,
+    writer: Option<VideoWriter>,
 }
 impl BoundingBoxRender {
+    pub fn with_save_to_file() -> Self {
+        Self {
+            id: "BoundingBoxRender".to_string(),
+            writer: Some(
+                VideoWriter::new(
+                    "output.avi",
+                    VideoWriter::fourcc('M', 'J', 'P', 'G').unwrap(),
+                    25.0,
+                    Size::new(640, 480),
+                    true,
+                )
+                .unwrap(),
+            ),
+        }
+    }
+
     pub fn default() -> Self {
         Self {
             id: "BoundingBoxRender".to_string(),
-            writer: VideoWriter::new(
-                "output.avi",
-                VideoWriter::fourcc('M', 'J', 'P', 'G').unwrap(),
-                25.0,
-                Size::new(640, 480),
-                true,
-            )
-            .unwrap(),
+            writer: None,
         }
     }
 }
@@ -43,7 +52,9 @@ impl BoundingBoxRender {
 impl Drop for BoundingBoxRender {
     fn drop(&mut self) {
         println!("Dropping BoundingBoxRender!");
-        self.writer.release().unwrap();
+        if let Some(writer) = self.writer.as_mut() {
+            writer.release().unwrap();
+        }
     }
 }
 
@@ -93,9 +104,7 @@ impl Processor for BoundingBoxRender {
 
         for plate_i in 0..plates.len() {
             let plate = plates.get(plate_i).unwrap();
-            //let intersection = bbox & plate.car;
             let plate_text = plate.plate.as_ref().unwrap();
-            //if intersection.size() == plate.car.size() {
             let header = Rect::new(plate.car.x, plate.car.y, plate.car.width, 20);
             rectangle(
                 &mut image.data,
@@ -127,15 +136,18 @@ impl Processor for BoundingBoxRender {
                 false,
             )
             .unwrap();
-            //}
         }
 
-        self.writer.write(&image.data).unwrap();
+        if let Some(writer) = self.writer.as_mut() {
+            writer.write(&image.data).unwrap();
+        }
+
         output
             .writer
             .c1()
             .write(image.data, &image.version)
             .expect("Cannot write to output buffer");
+
         Ok(())
     }
 

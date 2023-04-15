@@ -1,2 +1,2 @@
-data/* filter=lfs diff=lfs merge=lfs -text
-models/* filter=lfs diff=lfs merge=lfs -text
+car_plates_detector/data/* filter=lfs diff=lfs merge=lfs -text
+car_plates_detector/models/* filter=lfs diff=lfs merge=lfs -text

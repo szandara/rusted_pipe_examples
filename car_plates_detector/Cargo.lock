@@ -130,6 +130,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfb24e866b15a1af2a1b663f10c6b6b8f397a84aadb828f12e5b289ec23a3a3c"
 
 [[package]]
+name = "car_plates_detector"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+ "gstreamer",
+ "gstreamer-app",
+ "gstreamer-video",
+ "leptess",
+ "opencv",
+ "rusted_pipe",
+ "spin_sleep",
+]
+
+[[package]]
 name = "casey"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1725,20 +1739,6 @@ dependencies = [
  "st3",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "rusted_pipe_examples"
-version = "0.1.0"
-dependencies = [
- "crossbeam",
- "gstreamer",
- "gstreamer-app",
- "gstreamer-video",
- "leptess",
- "opencv",
- "rusted_pipe",
- "spin_sleep",
 ]
 
 [[package]]
