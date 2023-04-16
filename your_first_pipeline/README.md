@@ -1,7 +1,7 @@
 
 ## Your first pipeline
 
-Let's create a simple producer that generates some data at a given fps. `FpsLimiter` can be found in the `rusted_pipe_examples` repo. Since this is a SourceProcessor, `handle` is called by the scheduler as soon as they are ready. ie. they are not processing anything. In real life this data would come from a sensor at a given sensor frame rate. Here we simulate different producing speed. The producer generates a string.
+Let's create a simple producer that generates some data at a given fps. `FpsLimiter` can be found in the repo. Since this is a SourceProcessor, `handle` is called by the scheduler as soon as they are ready. ie. they are not processing anything. In real life this data would come from a sensor at a given sensor frame rate. Here we simulate different producing speed. The producer generates a string.
 
 ```
 pub struct Producer {

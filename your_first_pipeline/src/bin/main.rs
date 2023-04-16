@@ -1,7 +1,7 @@
 use std::{thread, time::Duration};
 
 use rusted_pipe::{
-    buffers::synchronizers::{real_time::RealTimeSynchronizer, SynchronizerTypes},
+    buffers::synchronizers::real_time::RealTimeSynchronizer,
     graph::{
         graph::Graph,
         processor::{SourceNode, TerminalNode},
@@ -26,7 +26,7 @@ fn setup_test() -> Graph {
         true,
         1000,
         1000,
-        SynchronizerTypes::REALTIME(consumer_synch),
+        Box::new(consumer_synch),
     );
 
     // Create the graph objects and start the graph scheduler

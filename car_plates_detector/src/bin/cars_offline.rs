@@ -6,7 +6,7 @@ use car_plates_detector::plate_detection::{
     bounding_box_render::BoundingBoxRender, car_detector::CarDetector,
 };
 use rusted_pipe::{
-    buffers::synchronizers::{timestamp::TimestampSynchronizer, SynchronizerTypes},
+    buffers::synchronizers::timestamp::TimestampSynchronizer,
     graph::{
         graph::Graph,
         processor::{Node, SourceNode},
@@ -31,7 +31,7 @@ fn setup_test() -> Graph {
         true,
         3000,
         3000,
-        SynchronizerTypes::TIMESTAMP(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()),
     );
 
     // Node that performs OCR detection on images.
@@ -41,7 +41,7 @@ fn setup_test() -> Graph {
         true,
         3000,
         3000,
-        SynchronizerTypes::TIMESTAMP(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()),
     );
 
     // Node that collects the inferred information and overlays it on top of the original video.
@@ -51,7 +51,7 @@ fn setup_test() -> Graph {
         true,
         5000,
         5000,
-        SynchronizerTypes::TIMESTAMP(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()),
     );
 
     // Link nodes together to form a graph.
