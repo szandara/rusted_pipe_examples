@@ -1,0 +1,5 @@
+[workspace]
+members = [
+  "your_first_pipeline",
+  "car_plates_detector",
+]

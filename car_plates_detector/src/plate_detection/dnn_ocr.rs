@@ -46,7 +46,6 @@ use std::io::BufRead;
 use std::io::BufReader;
 
 pub struct DnnOcrReader {
-    id: String,
     network: TextDetectionModel_EAST,
     ocr: TextRecognitionModel,
 }
@@ -87,11 +86,7 @@ impl DnnOcrReader {
         ocr.set_input_params(scale, input_size, mean, false, false)
             .unwrap();
 
-        Self {
-            id: "DnnOcrReader".to_string(),
-            network: net,
-            ocr,
-        }
+        Self { network: net, ocr }
     }
 
     fn reshape_plate(&self, image: &Mat, rect: &Vector<Point>) -> Mat {
@@ -141,7 +136,7 @@ impl Processor for DnnOcrReader {
         mut output: ProcessorWriter<Self::OUTPUT>,
     ) -> Result<(), RustedPipeError> {
         let image_packet = input.c1().unwrap();
-        println!("OCR Image {}", image_packet.version.timestamp);
+        println!("OCR Image {}", image_packet.version.timestamp_ns);
         let image = &image_packet.data;
         let mut grey = Mat::default();
         cvt_color(image, &mut grey, COLOR_BGR2GRAY, 0).unwrap();
@@ -176,9 +171,5 @@ impl Processor for DnnOcrReader {
             .unwrap();
 
         Ok(())
-    }
-
-    fn id(&self) -> &String {
-        return &self.id;
     }
 }

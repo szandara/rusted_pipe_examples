@@ -21,13 +21,11 @@ use rusted_pipe::RustedPipeError;
 use crate::plate_detection::CarWithText;
 
 pub struct BoundingBoxRender {
-    id: String,
     writer: Option<VideoWriter>,
 }
 impl BoundingBoxRender {
     pub fn with_save_to_file() -> Self {
         Self {
-            id: "BoundingBoxRender".to_string(),
             writer: Some(
                 VideoWriter::new(
                     "output.avi",
@@ -42,10 +40,7 @@ impl BoundingBoxRender {
     }
 
     pub fn default() -> Self {
-        Self {
-            id: "BoundingBoxRender".to_string(),
-            writer: None,
-        }
+        Self { writer: None }
     }
 }
 
@@ -67,7 +62,7 @@ impl Processor for BoundingBoxRender {
         mut output: ProcessorWriter<Self::OUTPUT>,
     ) -> Result<(), RustedPipeError> {
         if let Some(image) = input.c3() {
-            println!("Render Image {}", image.version.timestamp);
+            println!("Render Image {}", image.version.timestamp_ns);
         } else {
             println!("Skipping inferred data with no image");
             return Ok(());
@@ -149,10 +144,6 @@ impl Processor for BoundingBoxRender {
             .expect("Cannot write to output buffer");
 
         Ok(())
-    }
-
-    fn id(&self) -> &String {
-        return &self.id;
     }
 }
 

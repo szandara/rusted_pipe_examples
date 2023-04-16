@@ -120,7 +120,7 @@ impl Processor for CarDetector {
         mut output: ProcessorWriter<Self::OUTPUT>,
     ) -> Result<(), RustedPipeError> {
         let image_packet = &input.c1().unwrap();
-        println!("CAR Image {}", image_packet.version.timestamp);
+        println!("CAR Image {}", image_packet.version.timestamp_ns);
         let image = &image_packet.data;
         let input_size = 416;
 
@@ -156,9 +156,5 @@ impl Processor for CarDetector {
             .unwrap();
 
         Ok(())
-    }
-
-    fn id(&self) -> &String {
-        return &self.id;
     }
 }

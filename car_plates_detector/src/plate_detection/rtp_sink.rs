@@ -126,10 +126,6 @@ impl TerminalProcessor for RtpSink {
 
         Ok(())
     }
-
-    fn id(&self) -> &String {
-        return &self.id;
-    }
 }
 
 unsafe impl Send for RtpSink {}

@@ -24,7 +24,7 @@ fn setup_test() -> Graph {
         Box::new(VideoReader::default(true)),
     );
 
-    let realtime_synch = RealTimeSynchronizer::new(100, true, false);
+    let realtime_synch = RealTimeSynchronizer::new(1e8 as u128, true, false);
     let timestamp_synch = TimestampSynchronizer::default();
 
     // Node that performs bounding box detection for cars

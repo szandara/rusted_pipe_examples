@@ -20,7 +20,6 @@ use std::time::Duration;
 use std::time::Instant;
 
 pub struct VideoReader {
-    id: String,
     capture: VideoCapture,
     fps_control: Instant,
     fps_wait: Duration,
@@ -35,7 +34,6 @@ impl VideoReader {
     pub fn default(do_loop: bool) -> Self {
         let fps = 20;
         Self {
-            id: "VideoReader".to_string(),
             capture: make_video(),
             fps_control: Instant::now(),
             fps_wait: Duration::from_millis(1000 / fps),
@@ -71,7 +69,7 @@ impl SourceProcessor for VideoReader {
         )
         .unwrap();
         let frame_ts = DataVersion::from_now();
-        println!("Frame {}", frame_ts.timestamp);
+        println!("Frame {}", frame_ts.timestamp_ns);
         output.writer.c1().write(image_resized, &frame_ts).unwrap();
         let elapsed = self.fps_control.elapsed();
 
@@ -81,10 +79,6 @@ impl SourceProcessor for VideoReader {
 
         self.fps_control = Instant::now();
         Ok(())
-    }
-
-    fn id(&self) -> &String {
-        return &self.id;
     }
 }
 
