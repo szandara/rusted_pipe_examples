@@ -4,6 +4,7 @@ use rusted_pipe::{
     buffers::synchronizers::real_time::RealTimeSynchronizer,
     graph::{
         graph::Graph,
+        metrics::Metrics,
         processor::{SourceNode, TerminalNode},
     },
 };
@@ -30,7 +31,7 @@ fn setup_test() -> Graph {
     );
 
     // Create the graph objects and start the graph scheduler
-    let mut graph = Graph::new();
+    let mut graph = Graph::new(Metrics::no_metrics());
 
     rusted_pipe::graph::graph::link(
         slow_producer.write_channel.writer.c1(),
@@ -52,7 +53,7 @@ fn setup_test() -> Graph {
 }
 
 fn main() {
-    let mut graph = setup_test();
+    let graph = setup_test();
     thread::sleep(Duration::from_secs(10));
     graph.stop(false, None);
     println!("Done");

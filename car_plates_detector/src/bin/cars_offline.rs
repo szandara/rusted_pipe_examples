@@ -3,19 +3,20 @@ use std::{thread, time::Duration};
 use car_plates_detector::plate_detection::dnn_ocr::DnnOcrReader;
 use car_plates_detector::plate_detection::video_reader::VideoReader;
 use car_plates_detector::plate_detection::{
-    bounding_box_render::BoundingBoxRender, car_detector::CarDetector,
+    bounding_box_render::BoundingBoxRender, object_detector::ObjectDetector,
 };
+use rusted_pipe::graph::metrics::Metrics;
 use rusted_pipe::{
     buffers::synchronizers::timestamp::TimestampSynchronizer,
     graph::{
         graph::Graph,
+        metrics::default_prometheus_address,
         processor::{Node, SourceNode},
     },
 };
 
-fn setup_test() -> Graph {
+fn setup_test(metrics: Metrics) -> Graph {
     // Create the nodes
-
     // Node that reads the data from the input file
     let mut video_input_node = SourceNode::create_common(
         "video_input".to_string(),
@@ -27,7 +28,17 @@ fn setup_test() -> Graph {
     // Node that performs bounding box detection for cars
     let mut car_detector_node = Node::create_common(
         "car_detector".to_string(),
-        Box::new(CarDetector::default()),
+        Box::new(ObjectDetector::car_detector()),
+        true,
+        3000,
+        3000,
+        Box::new(timestamp_synch.clone()),
+    );
+
+    // Node that performs bounding box detection for cars
+    let mut plate_detector_node = Node::create_common(
+        "plate_detector".to_string(),
+        Box::new(ObjectDetector::plate_detector()),
         true,
         3000,
         3000,
@@ -78,6 +89,25 @@ fn setup_test() -> Graph {
     )
     .unwrap();
 
+    // Frame -> Plate Detector
+    rusted_pipe::graph::graph::link(
+        video_input_node.write_channel.writer.c1(),
+        plate_detector_node
+            .read_channel
+            .channels
+            .lock()
+            .unwrap()
+            .c1(),
+    )
+    .unwrap();
+
+    // Plate Detector -> OCR
+    rusted_pipe::graph::graph::link(
+        plate_detector_node.write_channel.writer.c1(),
+        ocr_detector_node.read_channel.channels.lock().unwrap().c2(),
+    )
+    .unwrap();
+
     // Frame -> BoundingBox
     rusted_pipe::graph::graph::link(
         video_input_node.write_channel.writer.c1(),
@@ -100,10 +130,11 @@ fn setup_test() -> Graph {
     .unwrap();
 
     // Create the graph objects and start the graph scheduler
-    let mut graph = Graph::new();
+    let mut graph = Graph::new(metrics);
 
     // We need to start each node independently
     graph.start_node(ocr_detector_node);
+    graph.start_node(plate_detector_node);
     graph.start_node(bbox_render_node);
     graph.start_node(car_detector_node);
     graph.start_source_node(video_input_node);
@@ -112,10 +143,12 @@ fn setup_test() -> Graph {
 }
 
 fn main() {
-    let mut graph = setup_test();
+    let metrics = Metrics::builder().with_prometheus(&default_prometheus_address());
+    let graph = setup_test(metrics);
 
     println!("Starting, waiting for video to end");
-    thread::sleep(Duration::from_millis(4000));
+    thread::sleep(Duration::from_millis(15000));
     graph.stop(true, None);
+
     println!("Done");
 }

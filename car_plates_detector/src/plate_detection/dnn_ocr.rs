@@ -1,126 +1,96 @@
 use super::CarWithText;
 
+use leptess::tesseract;
+use leptess::tesseract::TessApi;
 use opencv::core::Point;
-use opencv::core::Point2f;
-
 use opencv::core::Rect;
-use opencv::core::Scalar;
-use opencv::core::Size;
 
 use opencv::core::Vector;
-use opencv::core::BORDER_CONSTANT;
+
 use opencv::core::CV_32F;
-
-use opencv::dnn::read_net;
-
-use opencv::dnn::TextDetectionModel_EAST;
-use opencv::dnn::TextDetectionModel_EASTTrait;
-use opencv::dnn::TextRecognitionModel;
-
 use opencv::imgproc::cvt_color;
-use opencv::imgproc::get_perspective_transform;
 
-use opencv::imgproc::warp_perspective;
 use opencv::imgproc::COLOR_BGR2GRAY;
 
-use opencv::imgproc::INTER_LINEAR;
+use opencv::imgproc::filter_2d;
 use opencv::prelude::Mat;
 
 use opencv::prelude::MatTraitConst;
 
-use opencv::prelude::ModelTrait;
-
-use opencv::prelude::TextDetectionModelTraitConst;
-use opencv::prelude::TextRecognitionModelTrait;
-use opencv::prelude::TextRecognitionModelTraitConst;
-
-use rusted_pipe::channels::typed_read_channel::ReadChannel1;
+use opencv::prelude::MatTraitManual;
+use rusted_pipe::channels::typed_read_channel::ReadChannel2;
 use rusted_pipe::channels::typed_write_channel::WriteChannel1;
 use rusted_pipe::graph::processor::Processor;
 use rusted_pipe::graph::processor::ProcessorWriter;
-use rusted_pipe::packet::typed::ReadChannel1PacketSet;
+use rusted_pipe::packet::typed::ReadChannel2PacketSet;
 use rusted_pipe::RustedPipeError;
-
-use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
+use std::ffi::CString;
 
 pub struct DnnOcrReader {
-    network: TextDetectionModel_EAST,
-    ocr: TextRecognitionModel,
+    ocr: TessApi,
+    deblur: bool,
 }
+
 impl DnnOcrReader {
     pub fn default() -> Self {
-        let net = read_net("models/frozen_east_text_detection.pb", "", "").unwrap();
-        let mut net = TextDetectionModel_EAST::new(&net).unwrap();
+        let mut api = tesseract::TessApi::new(Some("models"), "licence").unwrap();
+        let data_path_cstr = CString::new("models").unwrap();
+        let lang = CString::new("eng").unwrap();
 
-        // Set the input of the network
-        net.set_confidence_threshold(0.5)
-            .unwrap()
-            .set_nms_threshold(0.4)
+        api.raw
+            .init_4(Some(data_path_cstr.as_ref()), Some(lang.as_ref()), 1)
+            .unwrap();
+        api.raw
+            .set_variable(
+                &CString::new("tessedit_char_whitelist").unwrap(),
+                &CString::new("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789").unwrap(),
+            )
+            .unwrap();
+        api.raw
+            .set_variable(
+                &CString::new("tessedit_pageseg_mode").unwrap(),
+                &CString::new("7").unwrap(),
+            )
             .unwrap();
 
-        let scale = 1.0;
-        let mean = Scalar::from((123.68, 116.78, 103.94));
-        let input_size = Size::new(320, 320);
-
-        net.set_input_params(scale, input_size, mean, true, false)
-            .unwrap();
-
-        let scale = 1.0 / 127.5;
-        let mean = Scalar::from((127.5, 127.5, 127.5));
-        let input_size = Size::new(100, 32);
-
-        let mut ocr =
-            TextRecognitionModel::from_file("models/CRNN_VGG_BiLSTM_CTC.onnx", "").unwrap();
-        ocr.set_decode_type("CTC-greedy").unwrap();
-
-        let mut vocabulary = Vector::<String>::default();
-        let file = File::open("models/alphabet_36.txt").unwrap();
-        let reader = BufReader::new(file);
-
-        for line in reader.lines() {
-            vocabulary.push(&line.unwrap());
+        Self {
+            ocr: api,
+            deblur: false,
         }
-        ocr.set_vocabulary(&vocabulary).unwrap();
-        ocr.set_input_params(scale, input_size, mean, false, false)
-            .unwrap();
-
-        Self { network: net, ocr }
     }
 
-    fn reshape_plate(&self, image: &Mat, rect: &Vector<Point>) -> Mat {
-        let output_size = Size::new(100, 32);
+    fn reshape_plate(&self, image: &Mat, rect: &Rect) -> Mat {
         let mut image_2f = Mat::default();
         image.convert_to(&mut image_2f, CV_32F, 1.0, 0.0).unwrap();
-        let mut rect_2f = Vector::<Point2f>::default();
-        for p in rect {
-            rect_2f.push(Point2f::new(p.x as f32, p.y as f32));
+        let mut rect_smaller = rect.clone();
+
+        rect_smaller.x += (rect_smaller.width as f32 * 0.10) as i32;
+        rect_smaller.y += (rect_smaller.height as f32 * 0.12) as i32;
+
+        rect_smaller.width -= (rect_smaller.width as f32 * 0.12) as i32;
+        rect_smaller.height -= (rect_smaller.height as f32 * 0.24) as i32;
+
+        let cropped = image.apply_1(rect_smaller).unwrap();
+        if self.deblur {
+            let mut processed = Mat::default();
+            let kernel = Mat::from_slice_2d(&[[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]]).unwrap();
+
+            filter_2d(
+                &cropped,
+                &mut processed,
+                -1,
+                &kernel,
+                Point::new(0, 0),
+                0.0,
+                -22,
+            )
+            .unwrap();
+
+            return processed;
+        } else {
+            // Make it contiguous
+            return cropped.clone();
         }
-
-        let mut target_rect_2f = Vector::<Point2f>::default();
-        target_rect_2f.push(Point2f::new(0.0, output_size.height as f32 - 1.0));
-        target_rect_2f.push(Point2f::new(0.0, 0.0));
-        target_rect_2f.push(Point2f::new(output_size.width as f32 - 1.0, 0.0));
-        target_rect_2f.push(Point2f::new(
-            output_size.width as f32 - 1.0,
-            output_size.height as f32 - 1.0,
-        ));
-
-        let perspective = get_perspective_transform(&rect_2f, &target_rect_2f, 0).unwrap();
-        let mut output = Mat::default();
-
-        warp_perspective(
-            &image_2f,
-            &mut output,
-            &perspective,
-            output_size,
-            INTER_LINEAR,
-            BORDER_CONSTANT,
-            Scalar::default(),
-        )
-        .unwrap();
-        return output;
     }
 }
 
@@ -128,39 +98,54 @@ unsafe impl Send for DnnOcrReader {}
 unsafe impl Sync for DnnOcrReader {}
 
 impl Processor for DnnOcrReader {
-    type INPUT = ReadChannel1<Mat>;
+    type INPUT = ReadChannel2<Mat, Vector<Rect>>;
     type OUTPUT = WriteChannel1<Vec<CarWithText>>;
     fn handle(
         &mut self,
-        input: ReadChannel1PacketSet<Mat>,
+        mut input: ReadChannel2PacketSet<Mat, Vector<Rect>>,
         mut output: ProcessorWriter<Self::OUTPUT>,
     ) -> Result<(), RustedPipeError> {
-        let image_packet = input.c1().unwrap();
+        let image_packet = input.c1_owned().unwrap();
         println!("OCR Image {}", image_packet.version.timestamp_ns);
         let image = &image_packet.data;
         let mut grey = Mat::default();
         cvt_color(image, &mut grey, COLOR_BGR2GRAY, 0).unwrap();
 
-        let mut output_data = Vector::<Vector<Point>>::default();
-        self.network.detect(image, &mut output_data).unwrap();
-
         let mut out_rect: Vec<CarWithText> = vec![];
-        for r in output_data {
-            let rect = Rect::new(
-                r.get(1).unwrap().x,
-                r.get(1).unwrap().y,
-                r.get(3).unwrap().x - r.get(1).unwrap().x,
-                r.get(3).unwrap().y - r.get(1).unwrap().y,
-            );
-            if rect.x > 20
-                && rect.y > 20
-                && rect.x <= image.cols() - 20
-                && rect.y <= image.rows() - 20
+        let plates = input.c2_owned().unwrap();
+        for rect in plates.data {
+            let ratio = rect.width as f32 / rect.height as f32;
+            if rect.x > 2
+                && rect.y > 2
+                && rect.x <= image.cols() - 2
+                && rect.y <= image.rows() - 2
+                && ratio > 3.0
+                && ratio < 4.0
             {
-                let cropped = self.reshape_plate(&grey, &r);
-                let result = self.ocr.recognize(&cropped).unwrap();
-                //println!("{:?}, {:?}, {:?}", result, r, image.mat_size());
-                out_rect.push(CarWithText::new(Some(result), rect));
+                let mut cropped = self.reshape_plate(&grey, &rect);
+
+                let cols = cropped.cols();
+                let rows = cropped.rows();
+                self.ocr
+                    .raw
+                    .set_image(&cropped.data_bytes_mut().unwrap(), cols, rows, 1, cols)
+                    .unwrap();
+                // imwrite(
+                //     &format!(
+                //         "cropped{}.png",
+                //         SystemTime::now()
+                //             .duration_since(UNIX_EPOCH)
+                //             .expect("Time went backwards")
+                //             .as_millis()
+                //     ),
+                //     &cropped,
+                //     &Vector::default(),
+                // )
+                // .unwrap();
+                let result = self.ocr.get_utf8_text().unwrap();
+
+                println!("OCR {:?}, {:?}", result.trim(), cropped);
+                out_rect.push(CarWithText::new(Some(String::from(result.trim())), rect));
             }
         }
 

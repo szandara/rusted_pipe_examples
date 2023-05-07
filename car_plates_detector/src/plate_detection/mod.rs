@@ -1,8 +1,8 @@
 pub mod bounding_box_render;
-pub mod car_detector;
 pub mod dnn_ocr;
-pub mod video_reader;
+pub mod object_detector;
 pub mod rtp_sink;
+pub mod video_reader;
 
 use opencv::core::Rect;
 

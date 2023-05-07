@@ -8,6 +8,7 @@ use opencv::core::ToInputOutputArray;
 use opencv::core::Vector;
 
 use opencv::core::CV_32F;
+use opencv::dnn;
 use opencv::dnn::blob_from_image;
 use opencv::dnn::nms_boxes;
 
@@ -29,30 +30,24 @@ use rusted_pipe::graph::processor::Processor;
 use rusted_pipe::graph::processor::ProcessorWriter;
 use rusted_pipe::RustedPipeError;
 
-pub struct CarDetector {
+pub struct ObjectDetector {
     classifier: Net,
-    id: String,
+    input_size: i32,
+    post_processor: &'static dyn YoloProcessor,
 }
 
-impl CarDetector {
-    pub fn default() -> Self {
-        let mut classifier =
-            read_net_from_darknet("models/yolov3.cfg", "models/yolov3.weights").unwrap();
+trait YoloProcessor {
+    fn post_process(&self, img_rows: i32, img_cols: i32, outputs: &Vector<Mat>) -> Vector<Rect>;
+}
 
-        classifier
-            .set_preferable_backend(DNN_BACKEND_OPENCV)
-            .unwrap();
-        classifier.set_preferable_target(DNN_TARGET_CPU).unwrap();
-        return CarDetector {
-            classifier,
-            id: "CarDetector".to_string(),
-        };
-    }
+struct YoloProcessorV3 {}
 
+impl YoloProcessor for YoloProcessorV3 {
     fn post_process(&self, img_rows: i32, img_cols: i32, outputs: &Vector<Mat>) -> Vector<Rect> {
         let mut confidences = Vector::<f32>::default();
         let mut boxes = Vector::<Rect>::default();
 
+        println!("{:?}", outputs);
         for data in outputs {
             for j in 0..data.rows() {
                 let mut scores = data
@@ -108,10 +103,94 @@ impl CarDetector {
     }
 }
 
-unsafe impl Send for CarDetector {}
-unsafe impl Sync for CarDetector {}
+struct YoloProcessorV5 {
+    input_size: i32,
+}
 
-impl Processor for CarDetector {
+impl YoloProcessor for YoloProcessorV5 {
+    fn post_process(&self, img_rows: i32, img_cols: i32, outputs: &Vector<Mat>) -> Vector<Rect> {
+        let mut confidences = Vector::<f32>::default();
+        let mut boxes = Vector::<Rect>::default();
+
+        println!("V5 {:?}", outputs);
+
+        let x_factor = img_cols as f32 / self.input_size as f32;
+        let y_factor = img_rows as f32 / self.input_size as f32;
+
+        for data in outputs {
+            for j in 0..25200 {
+                let confidence: f32 = *data.at_3d(0, j, 4).unwrap();
+                if confidence > 0.4 {
+                    let class_score: f32 = *data.at_3d(0, j, 5).unwrap();
+                    if class_score > 0.25 {
+                        let cx: f32 = *data.at_3d(0, j, 0).unwrap();
+                        let cy: f32 = *data.at_3d(0, j, 1).unwrap();
+                        let w: f32 = *data.at_3d(0, j, 2).unwrap();
+                        let h: f32 = *data.at_3d(0, j, 3).unwrap();
+                        let left = (cx - 0.5 * w) * x_factor;
+                        let top = (cy - 0.5 * h) * y_factor;
+                        let width = w * x_factor;
+                        let height = h * y_factor;
+
+                        confidences.push(confidence);
+                        boxes.push(Rect::new(
+                            left as i32,
+                            top as i32,
+                            width as i32,
+                            height as i32,
+                        ));
+                    }
+                }
+            }
+        }
+
+        let mut indices = Vector::<i32>::default();
+        nms_boxes(&boxes, &confidences, 0.5, 0.4, &mut indices, 1.0, 0).unwrap();
+
+        let mut output = Vector::<Rect>::default();
+        for i in indices {
+            output.push(boxes.get(i as usize).unwrap());
+        }
+
+        return output;
+    }
+}
+
+impl ObjectDetector {
+    pub fn car_detector() -> Self {
+        let mut classifier =
+            read_net_from_darknet("models/yolov3.cfg", "models/yolov3.weights").unwrap();
+
+        classifier
+            .set_preferable_backend(DNN_BACKEND_OPENCV)
+            .unwrap();
+        classifier.set_preferable_target(DNN_TARGET_CPU).unwrap();
+        return ObjectDetector {
+            classifier,
+            input_size: 416,
+            post_processor: &YoloProcessorV3 {},
+        };
+    }
+
+    pub fn plate_detector() -> Self {
+        let mut classifier = dnn::read_net_from_onnx("models/plate_best.onnx").unwrap();
+
+        classifier
+            .set_preferable_backend(DNN_BACKEND_OPENCV)
+            .unwrap();
+        classifier.set_preferable_target(DNN_TARGET_CPU).unwrap();
+        return ObjectDetector {
+            classifier,
+            input_size: 640,
+            post_processor: &YoloProcessorV5 { input_size: 640 },
+        };
+    }
+}
+
+unsafe impl Send for ObjectDetector {}
+unsafe impl Sync for ObjectDetector {}
+
+impl Processor for ObjectDetector {
     type OUTPUT = WriteChannel1<Vector<Rect>>;
     type INPUT = ReadChannel1<Mat>;
     fn handle(
@@ -121,13 +200,13 @@ impl Processor for CarDetector {
     ) -> Result<(), RustedPipeError> {
         let image_packet = &input.c1().unwrap();
         println!("CAR Image {}", image_packet.version.timestamp_ns);
+
         let image = &image_packet.data;
-        let input_size = 416;
 
         let mut blob = blob_from_image(
-            image,
+            &image,
             1.0 / 255.0,
-            Size::new(input_size, input_size),
+            Size::new(self.input_size, self.input_size),
             Scalar::default(),
             true,
             false,
@@ -146,7 +225,9 @@ impl Processor for CarDetector {
         self.classifier
             .forward(&mut output_values, &output_names)
             .unwrap();
-        let out = self.post_process(image.rows(), image.cols(), &output_values);
+        let out = self
+            .post_processor
+            .post_process(image.rows(), image.cols(), &output_values);
 
         //let out = Vector::<Rect>::default();
         output

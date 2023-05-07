@@ -3,8 +3,9 @@ use std::{thread, time::Duration};
 use car_plates_detector::plate_detection::dnn_ocr::DnnOcrReader;
 use car_plates_detector::plate_detection::video_reader::VideoReader;
 use car_plates_detector::plate_detection::{
-    bounding_box_render::BoundingBoxRender, car_detector::CarDetector, rtp_sink::RtpSink,
+    bounding_box_render::BoundingBoxRender, object_detector::ObjectDetector, rtp_sink::RtpSink,
 };
+use rusted_pipe::graph::metrics::Metrics;
 use rusted_pipe::{
     buffers::synchronizers::{real_time::RealTimeSynchronizer, timestamp::TimestampSynchronizer},
     graph::{
@@ -28,7 +29,7 @@ fn setup_test() -> Graph {
     // Node that performs bounding box detection for cars
     let mut car_detector_node = Node::create_common(
         "car_detector".to_string(),
-        Box::new(CarDetector::default()),
+        Box::new(ObjectDetector::car_detector()),
         false,
         1,
         1,
@@ -118,7 +119,7 @@ fn setup_test() -> Graph {
     .unwrap();
 
     // Create the graph objects and start the graph scheduler
-    let mut graph = Graph::new();
+    let mut graph = Graph::new(Metrics::no_metrics());
 
     // We need to start each node independently
     graph.start_terminal_node(rtp_node);

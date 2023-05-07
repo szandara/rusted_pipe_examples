@@ -1,3 +1,7 @@
+use std::time::Duration;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+
 use opencv::core::Point;
 use opencv::core::Rect;
 use opencv::core::Scalar;
@@ -9,8 +13,11 @@ use opencv::imgproc::LINE_8;
 use opencv::imgproc::{rectangle, LineTypes};
 use opencv::prelude::Mat;
 
+use lazy_static::lazy_static;
 use opencv::videoio::VideoWriter;
 use opencv::videoio::VideoWriterTrait;
+use prometheus::register_histogram;
+use prometheus::Histogram;
 use rusted_pipe::channels::read_channel::InputGenerator;
 use rusted_pipe::channels::typed_read_channel::ReadChannel3;
 use rusted_pipe::channels::typed_write_channel::WriteChannel1;
@@ -22,6 +29,12 @@ use crate::plate_detection::CarWithText;
 
 pub struct BoundingBoxRender {
     writer: Option<VideoWriter>,
+    metrics: &'static Histogram,
+}
+lazy_static! {
+    static ref METRICS: Histogram =
+        register_histogram!("full_cycle", format!("Timing for the full pipeline"))
+            .expect(&format!("Cannot create pipeline timer"));
 }
 impl BoundingBoxRender {
     pub fn with_save_to_file() -> Self {
@@ -31,16 +44,20 @@ impl BoundingBoxRender {
                     "output.avi",
                     VideoWriter::fourcc('M', 'J', 'P', 'G').unwrap(),
                     25.0,
-                    Size::new(640, 480),
+                    Size::new(1280, 720),
                     true,
                 )
                 .unwrap(),
             ),
+            metrics: &METRICS,
         }
     }
 
     pub fn default() -> Self {
-        Self { writer: None }
+        Self {
+            writer: None,
+            metrics: &METRICS,
+        }
     }
 }
 
@@ -100,7 +117,7 @@ impl Processor for BoundingBoxRender {
         for plate_i in 0..plates.len() {
             let plate = plates.get(plate_i).unwrap();
             let plate_text = plate.plate.as_ref().unwrap();
-            let header = Rect::new(plate.car.x, plate.car.y, plate.car.width, 20);
+            let header = Rect::new(plate.car.x, plate.car.y - 60, plate.car.width, 60);
             rectangle(
                 &mut image.data,
                 header,
@@ -122,9 +139,9 @@ impl Processor for BoundingBoxRender {
             put_text(
                 &mut image.data,
                 plate_text,
-                Point::new(plate.car.x, plate.car.y + 20),
+                Point::new(plate.car.x, plate.car.y - 3),
                 FONT_HERSHEY_PLAIN,
-                2.0,
+                4.0,
                 Scalar::from((255.0, 255.0, 255.0)),
                 2,
                 LINE_8,
@@ -142,7 +159,11 @@ impl Processor for BoundingBoxRender {
             .c1()
             .write(image.data, &image.version)
             .expect("Cannot write to output buffer");
+        let pipeline_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
+            - Duration::from_nanos(image.version.timestamp_ns as u64);
 
+        println!("Pipe time {}", pipeline_time.as_secs_f64());
+        self.metrics.observe(pipeline_time.as_secs_f64());
         Ok(())
     }
 }

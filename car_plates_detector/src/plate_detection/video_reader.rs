@@ -32,7 +32,7 @@ fn make_video() -> VideoCapture {
 }
 impl VideoReader {
     pub fn default(do_loop: bool) -> Self {
-        let fps = 20;
+        let fps = 1;
         Self {
             capture: make_video(),
             fps_control: Instant::now(),
@@ -54,23 +54,24 @@ impl SourceProcessor for VideoReader {
                 self.capture = make_video();
                 self.capture.read(&mut image).unwrap();
             } else {
+                println!("Done sending video!");
                 return Err(RustedPipeError::EndOfStream());
             }
         }
 
-        let mut image_resized = Mat::default();
+        let frame_ts = DataVersion::from_now();
+        println!("Frame {}", frame_ts.timestamp_ns);
+        let mut resized = Mat::default();
         resize(
             &image,
-            &mut image_resized,
-            Size::new(640, 480),
+            &mut resized,
+            Size::new(1280, 720),
             0.0,
             0.0,
             INTER_LINEAR,
         )
         .unwrap();
-        let frame_ts = DataVersion::from_now();
-        println!("Frame {}", frame_ts.timestamp_ns);
-        output.writer.c1().write(image_resized, &frame_ts).unwrap();
+        output.writer.c1().write(resized, &frame_ts).unwrap();
         let elapsed = self.fps_control.elapsed();
 
         if self.fps_wait > elapsed {

@@ -11,11 +11,14 @@ path = "src/lib.rs"
 [dependencies]
 opencv = "0.75"
 leptess = "0.14.0"
-leptonica-plumbing = "1.0.0"
-tesseract-plumbing = "0.9.0"
+tesseract-plumbing = "0.8.0"
 rusted_pipe = { path = "/opt/rusted_pipe/" }
 crossbeam = {version = "0.8.1"}
 spin_sleep = { version = "^1.1.1" }
 gstreamer = "^0.20.0"
 gstreamer-app = "^0.20.0"
 gstreamer-video = "^0.20.0"
+lazy_static = "^1.4.0"
+pyroscope = "0.5.4"
+pyroscope_pprofrs = "0.2"
+prometheus = "^0.13.3"
