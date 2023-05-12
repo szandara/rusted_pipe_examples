@@ -35,7 +35,7 @@ impl DnnOcrReader {
     pub fn default() -> Self {
         let mut api = tesseract::TessApi::new(Some("models"), "licence").unwrap();
         let data_path_cstr = CString::new("models").unwrap();
-        let lang = CString::new("eng").unwrap();
+        let lang = CString::new("licence").unwrap();
 
         api.raw
             .init_4(Some(data_path_cstr.as_ref()), Some(lang.as_ref()), 1)
@@ -130,18 +130,6 @@ impl Processor for DnnOcrReader {
                     .raw
                     .set_image(&cropped.data_bytes_mut().unwrap(), cols, rows, 1, cols)
                     .unwrap();
-                // imwrite(
-                //     &format!(
-                //         "cropped{}.png",
-                //         SystemTime::now()
-                //             .duration_since(UNIX_EPOCH)
-                //             .expect("Time went backwards")
-                //             .as_millis()
-                //     ),
-                //     &cropped,
-                //     &Vector::default(),
-                // )
-                // .unwrap();
                 let result = self.ocr.get_utf8_text().unwrap();
 
                 println!("OCR {:?}, {:?}", result.trim(), cropped);
