@@ -131,9 +131,9 @@ impl Processor for DnnOcrReader {
                     .set_image(&cropped.data_bytes_mut().unwrap(), cols, rows, 1, cols)
                     .unwrap();
                 let result = self.ocr.get_utf8_text().unwrap();
-
-                println!("OCR {:?}, {:?}", result.trim(), cropped);
-                out_rect.push(CarWithText::new(Some(String::from(result.trim())), rect));
+                let result_processed = result.trim().replace(" ", "");
+                println!("OCR {:?}, {:?}", result_processed, cropped);
+                out_rect.push(CarWithText::new(Some(String::from(result_processed)), rect));
             }
         }
 

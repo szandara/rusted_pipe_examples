@@ -132,7 +132,7 @@ fn setup_test() -> Graph {
 }
 
 fn main() {
-    let mut graph = setup_test();
+    let graph = setup_test();
 
     println!("Starting, waiting for video to end");
     thread::sleep(Duration::from_millis(4000));
