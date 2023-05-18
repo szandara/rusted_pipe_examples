@@ -27,7 +27,7 @@ fn setup_test() -> Graph {
         true,
         1000,
         1000,
-        Box::new(consumer_synch),
+        Box::new(consumer_synch), true
     );
 
     // Create the graph objects and start the graph scheduler

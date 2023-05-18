@@ -14,8 +14,11 @@ use opencv::dnn::nms_boxes;
 
 use opencv::dnn::read_net_from_darknet;
 use opencv::dnn::Net;
+use opencv::dnn::DNN_BACKEND_CUDA;
 use opencv::dnn::DNN_BACKEND_OPENCV;
+
 use opencv::dnn::DNN_TARGET_CPU;
+use opencv::dnn::DNN_TARGET_CUDA;
 
 use opencv::prelude::Mat;
 
@@ -161,10 +164,8 @@ impl ObjectDetector {
         let mut classifier =
             read_net_from_darknet("models/yolov3.cfg", "models/yolov3.weights").unwrap();
 
-        classifier
-            .set_preferable_backend(DNN_BACKEND_OPENCV)
-            .unwrap();
-        classifier.set_preferable_target(DNN_TARGET_CPU).unwrap();
+        classifier.set_preferable_backend(DNN_BACKEND_CUDA).unwrap();
+        classifier.set_preferable_target(DNN_TARGET_CUDA).unwrap();
         return ObjectDetector {
             classifier,
             input_size: 416,

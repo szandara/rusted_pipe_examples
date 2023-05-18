@@ -192,7 +192,7 @@ dependencies = [
  "gstreamer-video",
  "lazy_static",
  "leptess",
- "opencv",
+ "opencv 0.81.5",
  "prometheus",
  "pyroscope",
  "pyroscope_pprofrs",
@@ -1718,7 +1718,26 @@ dependencies = [
  "libc",
  "num-traits",
  "once_cell",
- "opencv-binding-generator",
+ "opencv-binding-generator 0.53.0",
+ "pkg-config",
+ "semver",
+ "shlex",
+ "vcpkg",
+]
+
+[[package]]
+name = "opencv"
+version = "0.81.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69c6364ff9381d33e5841788f819df1a1dc152bdf53e7b184c1082696d37c8c4"
+dependencies = [
+ "cc",
+ "dunce",
+ "jobserver",
+ "libc",
+ "num-traits",
+ "once_cell",
+ "opencv-binding-generator 0.64.0",
  "pkg-config",
  "semver",
  "shlex",
@@ -1730,6 +1749,21 @@ name = "opencv-binding-generator"
 version = "0.53.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a032233d495dfb2cb5eb0f97c71b737930be8dc96741914872c0b40d37f1083"
+dependencies = [
+ "clang",
+ "clang-sys",
+ "dunce",
+ "maplit",
+ "once_cell",
+ "percent-encoding",
+ "regex",
+]
+
+[[package]]
+name = "opencv-binding-generator"
+version = "0.64.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a3303b303473e421e13c9a8280936ca5107e4d554c5ea30c7efea614af46719"
 dependencies = [
  "clang",
  "clang-sys",
@@ -3428,7 +3462,7 @@ dependencies = [
  "gstreamer",
  "gstreamer-app",
  "gstreamer-video",
- "opencv",
+ "opencv 0.75.0",
  "pyroscope",
  "pyroscope_pprofrs",
  "rusted_pipe",

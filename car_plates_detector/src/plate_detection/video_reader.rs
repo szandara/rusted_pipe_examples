@@ -32,7 +32,7 @@ fn make_video() -> VideoCapture {
 }
 impl VideoReader {
     pub fn default(do_loop: bool) -> Self {
-        let fps = 1;
+        let fps = 5;
         Self {
             capture: make_video(),
             fps_control: Instant::now(),

@@ -33,7 +33,7 @@ fn setup_test() -> Graph {
         false,
         1,
         1,
-        Box::new(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()), true
     );
 
     // Node that performs OCR detection on images.
@@ -43,7 +43,7 @@ fn setup_test() -> Graph {
         false,
         1,
         1,
-        Box::new(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()), true
     );
 
     // Node that collects the inferred information and overlays it on top of the original video.
@@ -53,7 +53,7 @@ fn setup_test() -> Graph {
         false,
         2000,
         1,
-        Box::new(realtime_synch.clone()),
+        Box::new(realtime_synch.clone()), true
     );
 
     // Node that collects the inferred information and overlays it on top of the original video.
@@ -63,7 +63,7 @@ fn setup_test() -> Graph {
         false,
         2000,
         1,
-        Box::new(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()), true
     );
 
     // Link nodes together to form a graph.

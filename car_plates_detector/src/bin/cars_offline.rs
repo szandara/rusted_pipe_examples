@@ -32,7 +32,7 @@ fn setup_test(metrics: Metrics) -> Graph {
         true,
         3000,
         3000,
-        Box::new(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()), true
     );
 
     // Node that performs bounding box detection for cars
@@ -42,7 +42,7 @@ fn setup_test(metrics: Metrics) -> Graph {
         true,
         3000,
         3000,
-        Box::new(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()), true
     );
 
     // Node that performs OCR detection on images.
@@ -52,7 +52,7 @@ fn setup_test(metrics: Metrics) -> Graph {
         true,
         3000,
         3000,
-        Box::new(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()), true
     );
 
     // Node that collects the inferred information and overlays it on top of the original video.
@@ -62,7 +62,7 @@ fn setup_test(metrics: Metrics) -> Graph {
         true,
         5000,
         5000,
-        Box::new(timestamp_synch.clone()),
+        Box::new(timestamp_synch.clone()), true
     );
 
     // Link nodes together to form a graph.
