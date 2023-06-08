@@ -9,7 +9,7 @@ use rusted_pipe::graph::metrics::Metrics;
 use rusted_pipe::{
     buffers::synchronizers::timestamp::TimestampSynchronizer,
     graph::{
-        graph::Graph,
+        build::{Graph, link},
         metrics::default_prometheus_address,
         processor::{Node, SourceNode},
     },
@@ -76,56 +76,56 @@ fn setup_test(metrics: Metrics) -> Graph {
     // Read channels are 1 to 1. Data incoming into a read channel is always from the same source.
 
     // Frame -> OCR
-    rusted_pipe::graph::graph::link(
+    link(
         video_input_node.write_channel.writer.c1(),
-        ocr_detector_node.read_channel.channels.lock().unwrap().c1(),
+        ocr_detector_node.read_channel.channels.write().unwrap().c1(),
     )
     .unwrap();
 
     // Frame -> Car Detector
-    rusted_pipe::graph::graph::link(
+    link(
         video_input_node.write_channel.writer.c1(),
-        car_detector_node.read_channel.channels.lock().unwrap().c1(),
+        car_detector_node.read_channel.channels.write().unwrap().c1(),
     )
     .unwrap();
 
     // Frame -> Plate Detector
-    rusted_pipe::graph::graph::link(
+    link(
         video_input_node.write_channel.writer.c1(),
         plate_detector_node
             .read_channel
             .channels
-            .lock()
+            .write()
             .unwrap()
             .c1(),
     )
     .unwrap();
 
     // Plate Detector -> OCR
-    rusted_pipe::graph::graph::link(
+    link(
         plate_detector_node.write_channel.writer.c1(),
-        ocr_detector_node.read_channel.channels.lock().unwrap().c2(),
+        ocr_detector_node.read_channel.channels.write().unwrap().c2(),
     )
     .unwrap();
 
     // Frame -> BoundingBox
-    rusted_pipe::graph::graph::link(
+    link(
         video_input_node.write_channel.writer.c1(),
-        bbox_render_node.read_channel.channels.lock().unwrap().c3(),
+        bbox_render_node.read_channel.channels.write().unwrap().c3(),
     )
     .unwrap();
 
     // Car Detector -> BoundingBox
-    rusted_pipe::graph::graph::link(
+    link(
         car_detector_node.write_channel.writer.c1(),
-        bbox_render_node.read_channel.channels.lock().unwrap().c1(),
+        bbox_render_node.read_channel.channels.write().unwrap().c1(),
     )
     .unwrap();
 
     // OCR -> BoundingBox
-    rusted_pipe::graph::graph::link(
+    link(
         ocr_detector_node.write_channel.writer.c1(),
-        bbox_render_node.read_channel.channels.lock().unwrap().c2(),
+        bbox_render_node.read_channel.channels.write().unwrap().c2(),
     )
     .unwrap();
 
