@@ -9,7 +9,7 @@ use rusted_pipe::graph::metrics::Metrics;
 use rusted_pipe::{
     buffers::synchronizers::{real_time::RealTimeSynchronizer, timestamp::TimestampSynchronizer},
     graph::{
-        graph::Graph,
+        build::{Graph, link},
         processor::{Node, SourceNode, TerminalNode},
     },
 };
@@ -77,44 +77,44 @@ fn setup_test() -> Graph {
     // Read channels are 1 to 1. Data incoming into a read channel is always from the same source.
 
     // Frame -> OCR
-    rusted_pipe::graph::graph::link(
+    link(
         video_input_node.write_channel.writer.c1(),
-        ocr_detector_node.read_channel.channels.lock().unwrap().c1(),
+        ocr_detector_node.read_channel.channels.write().unwrap().c1(),
     )
     .unwrap();
 
     // Frame -> Car Detector
-    rusted_pipe::graph::graph::link(
+    link(
         video_input_node.write_channel.writer.c1(),
-        car_detector_node.read_channel.channels.lock().unwrap().c1(),
+        car_detector_node.read_channel.channels.write().unwrap().c1(),
     )
     .unwrap();
 
     // Frame -> BoundingBox
-    rusted_pipe::graph::graph::link(
+    link(
         video_input_node.write_channel.writer.c1(),
-        bbox_render_node.read_channel.channels.lock().unwrap().c3(),
+        bbox_render_node.read_channel.channels.write().unwrap().c3(),
     )
     .unwrap();
 
     // Car Detector -> BoundingBox
-    rusted_pipe::graph::graph::link(
+    link(
         car_detector_node.write_channel.writer.c1(),
-        bbox_render_node.read_channel.channels.lock().unwrap().c1(),
+        bbox_render_node.read_channel.channels.write().unwrap().c1(),
     )
     .unwrap();
 
     // OCR -> BoundingBox
-    rusted_pipe::graph::graph::link(
+    link(
         ocr_detector_node.write_channel.writer.c1(),
-        bbox_render_node.read_channel.channels.lock().unwrap().c2(),
+        bbox_render_node.read_channel.channels.write().unwrap().c2(),
     )
     .unwrap();
 
     // BoundingBox -> Rtp
-    rusted_pipe::graph::graph::link(
+    link(
         bbox_render_node.write_channel.writer.c1(),
-        rtp_node.read_channel.channels.lock().unwrap().c1(),
+        rtp_node.read_channel.channels.write().unwrap().c1(),
     )
     .unwrap();
 
