@@ -3,12 +3,14 @@ use std::{thread, time::Duration};
 use rusted_pipe::{
     buffers::synchronizers::real_time::RealTimeSynchronizer,
     graph::{
-        graph::Graph,
         metrics::Metrics,
         processor::{SourceNode, TerminalNode},
+        build::link,
+        build::Graph
     },
 };
 use your_first_pipeline::{Consumer, Producer};
+
 
 fn setup_test() -> Graph {
     // Create the nodes
@@ -33,15 +35,15 @@ fn setup_test() -> Graph {
     // Create the graph objects and start the graph scheduler
     let mut graph = Graph::new(Metrics::no_metrics());
 
-    rusted_pipe::graph::graph::link(
+    link(
         slow_producer.write_channel.writer.c1(),
-        consumer.read_channel.channels.lock().unwrap().c1(),
+        consumer.read_channel.channels.write().unwrap().c1(),
     )
     .unwrap();
 
-    rusted_pipe::graph::graph::link(
+    link(
         fast_producer.write_channel.writer.c1(),
-        consumer.read_channel.channels.lock().unwrap().c2(),
+        consumer.read_channel.channels.write().unwrap().c2(),
     )
     .unwrap();
 
