@@ -31,13 +31,12 @@ fn make_video() -> VideoCapture {
     VideoCapture::from_file("data/210112_01_Covid Oxford_4k_061.mp4", CAP_ANY).unwrap()
 }
 impl VideoReader {
-    pub fn default(do_loop: bool) -> Self {
-        let fps = 5;
+    pub fn default(do_loop: bool, fps: usize) -> Self {
         Self {
             capture: make_video(),
             fps_control: Instant::now(),
-            fps_wait: Duration::from_millis(1000 / fps),
-            _fps: fps,
+            fps_wait: Duration::from_millis((1000 / fps) as u64),
+            _fps: fps as u64,
             do_loop,
         }
     }

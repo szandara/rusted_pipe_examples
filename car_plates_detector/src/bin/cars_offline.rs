@@ -9,7 +9,7 @@ use rusted_pipe::graph::metrics::Metrics;
 use rusted_pipe::{
     buffers::synchronizers::timestamp::TimestampSynchronizer,
     graph::{
-        graph::Graph,
+        build::Graph,
         metrics::default_prometheus_address,
         processor::{Node, SourceNode},
     },
@@ -20,7 +20,7 @@ fn setup_test(metrics: Metrics) -> Graph {
     // Node that reads the data from the input file
     let mut video_input_node = SourceNode::create_common(
         "video_input".to_string(),
-        Box::new(VideoReader::default(false)),
+        Box::new(VideoReader::default(false, 5)),
     );
 
     let timestamp_synch = TimestampSynchronizer::default();
@@ -28,21 +28,23 @@ fn setup_test(metrics: Metrics) -> Graph {
     // Node that performs bounding box detection for cars
     let mut car_detector_node = Node::create_common(
         "car_detector".to_string(),
-        Box::new(ObjectDetector::car_detector()),
+        Box::new(ObjectDetector::car_detector(true)),
         true,
         3000,
         3000,
-        Box::new(timestamp_synch.clone()), true
+        Box::new(timestamp_synch.clone()),
+        true,
     );
 
     // Node that performs bounding box detection for cars
     let mut plate_detector_node = Node::create_common(
         "plate_detector".to_string(),
-        Box::new(ObjectDetector::plate_detector()),
+        Box::new(ObjectDetector::plate_detector(true)),
         true,
         3000,
         3000,
-        Box::new(timestamp_synch.clone()), true
+        Box::new(timestamp_synch.clone()),
+        true,
     );
 
     // Node that performs OCR detection on images.
@@ -52,7 +54,8 @@ fn setup_test(metrics: Metrics) -> Graph {
         true,
         3000,
         3000,
-        Box::new(timestamp_synch.clone()), true
+        Box::new(timestamp_synch.clone()),
+        true,
     );
 
     // Node that collects the inferred information and overlays it on top of the original video.
@@ -62,7 +65,8 @@ fn setup_test(metrics: Metrics) -> Graph {
         true,
         5000,
         5000,
-        Box::new(timestamp_synch.clone()), true
+        Box::new(timestamp_synch.clone()),
+        true,
     );
 
     // Link nodes together to form a graph.
@@ -76,56 +80,71 @@ fn setup_test(metrics: Metrics) -> Graph {
     // Read channels are 1 to 1. Data incoming into a read channel is always from the same source.
 
     // Frame -> OCR
-    rusted_pipe::graph::graph::link(
+    rusted_pipe::graph::build::link(
         video_input_node.write_channel.writer.c1(),
-        ocr_detector_node.read_channel.channels.lock().unwrap().c1(),
+        ocr_detector_node
+            .read_channel
+            .channels
+            .write()
+            .unwrap()
+            .c1(),
     )
     .unwrap();
 
     // Frame -> Car Detector
-    rusted_pipe::graph::graph::link(
+    rusted_pipe::graph::build::link(
         video_input_node.write_channel.writer.c1(),
-        car_detector_node.read_channel.channels.lock().unwrap().c1(),
+        car_detector_node
+            .read_channel
+            .channels
+            .write()
+            .unwrap()
+            .c1(),
     )
     .unwrap();
 
     // Frame -> Plate Detector
-    rusted_pipe::graph::graph::link(
+    rusted_pipe::graph::build::link(
         video_input_node.write_channel.writer.c1(),
         plate_detector_node
             .read_channel
             .channels
-            .lock()
+            .write()
             .unwrap()
             .c1(),
     )
     .unwrap();
 
     // Plate Detector -> OCR
-    rusted_pipe::graph::graph::link(
+    rusted_pipe::graph::build::link(
         plate_detector_node.write_channel.writer.c1(),
-        ocr_detector_node.read_channel.channels.lock().unwrap().c2(),
+        ocr_detector_node
+            .read_channel
+            .channels
+            .write()
+            .unwrap()
+            .c2(),
     )
     .unwrap();
 
     // Frame -> BoundingBox
-    rusted_pipe::graph::graph::link(
+    rusted_pipe::graph::build::link(
         video_input_node.write_channel.writer.c1(),
-        bbox_render_node.read_channel.channels.lock().unwrap().c3(),
+        bbox_render_node.read_channel.channels.write().unwrap().c3(),
     )
     .unwrap();
 
     // Car Detector -> BoundingBox
-    rusted_pipe::graph::graph::link(
+    rusted_pipe::graph::build::link(
         car_detector_node.write_channel.writer.c1(),
-        bbox_render_node.read_channel.channels.lock().unwrap().c1(),
+        bbox_render_node.read_channel.channels.write().unwrap().c1(),
     )
     .unwrap();
 
     // OCR -> BoundingBox
-    rusted_pipe::graph::graph::link(
+    rusted_pipe::graph::build::link(
         ocr_detector_node.write_channel.writer.c1(),
-        bbox_render_node.read_channel.channels.lock().unwrap().c2(),
+        bbox_render_node.read_channel.channels.write().unwrap().c2(),
     )
     .unwrap();
 

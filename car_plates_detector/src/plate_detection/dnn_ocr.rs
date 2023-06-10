@@ -31,8 +31,8 @@ pub struct DnnOcrReader {
     deblur: bool,
 }
 
-impl DnnOcrReader {
-    pub fn default() -> Self {
+impl Default for DnnOcrReader {
+    fn default() -> Self {
         let mut api = tesseract::TessApi::new(Some("models"), "licence").unwrap();
         let data_path_cstr = CString::new("models").unwrap();
         let lang = CString::new("licence").unwrap();
@@ -58,6 +58,10 @@ impl DnnOcrReader {
             deblur: false,
         }
     }
+}
+
+impl DnnOcrReader {
+    
 
     fn reshape_plate(&self, image: &Mat, rect: &Rect) -> Mat {
         let mut image_2f = Mat::default();

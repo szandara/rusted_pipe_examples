@@ -3,7 +3,7 @@ use std::{thread, time::Duration};
 use rusted_pipe::{
     buffers::synchronizers::real_time::RealTimeSynchronizer,
     graph::{
-        graph::Graph,
+        graph::build,
         metrics::Metrics,
         processor::{SourceNode, TerminalNode},
     },
@@ -27,19 +27,20 @@ fn setup_test() -> Graph {
         true,
         1000,
         1000,
-        Box::new(consumer_synch), true
+        Box::new(consumer_synch),
+        true,
     );
 
     // Create the graph objects and start the graph scheduler
     let mut graph = Graph::new(Metrics::no_metrics());
 
-    rusted_pipe::graph::graph::link(
+    rusted_pipe::graph::build::link(
         slow_producer.write_channel.writer.c1(),
         consumer.read_channel.channels.lock().unwrap().c1(),
     )
     .unwrap();
 
-    rusted_pipe::graph::graph::link(
+    rusted_pipe::graph::build::link(
         fast_producer.write_channel.writer.c1(),
         consumer.read_channel.channels.lock().unwrap().c2(),
     )

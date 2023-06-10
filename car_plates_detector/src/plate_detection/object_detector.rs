@@ -115,8 +115,6 @@ impl YoloProcessor for YoloProcessorV5 {
         let mut confidences = Vector::<f32>::default();
         let mut boxes = Vector::<Rect>::default();
 
-        println!("V5 {:?}", outputs);
-
         let x_factor = img_cols as f32 / self.input_size as f32;
         let y_factor = img_rows as f32 / self.input_size as f32;
 
@@ -160,12 +158,18 @@ impl YoloProcessor for YoloProcessorV5 {
 }
 
 impl ObjectDetector {
-    pub fn car_detector() -> Self {
+    pub fn car_detector(use_gpu: bool) -> Self {
         let mut classifier =
             read_net_from_darknet("models/yolov3.cfg", "models/yolov3.weights").unwrap();
 
-        classifier.set_preferable_backend(DNN_BACKEND_CUDA).unwrap();
-        classifier.set_preferable_target(DNN_TARGET_CUDA).unwrap();
+        if use_gpu {
+            classifier.set_preferable_backend(DNN_BACKEND_CUDA).unwrap();
+            classifier.set_preferable_target(DNN_TARGET_CUDA).unwrap();
+        } else {
+            classifier.set_preferable_backend(DNN_BACKEND_OPENCV).unwrap();
+            classifier.set_preferable_target(DNN_TARGET_CPU).unwrap();
+        }
+        
         return ObjectDetector {
             classifier,
             input_size: 416,
@@ -173,13 +177,17 @@ impl ObjectDetector {
         };
     }
 
-    pub fn plate_detector() -> Self {
+    pub fn plate_detector(use_gpu: bool) -> Self {
         let mut classifier = dnn::read_net_from_onnx("models/plate_best.onnx").unwrap();
 
-        classifier
-            .set_preferable_backend(DNN_BACKEND_OPENCV)
-            .unwrap();
-        classifier.set_preferable_target(DNN_TARGET_CPU).unwrap();
+        if use_gpu {
+            classifier.set_preferable_backend(DNN_BACKEND_CUDA).unwrap();
+            classifier.set_preferable_target(DNN_TARGET_CUDA).unwrap();
+        } else {
+            classifier.set_preferable_backend(DNN_BACKEND_OPENCV).unwrap();
+            classifier.set_preferable_target(DNN_TARGET_CPU).unwrap();
+        }
+
         return ObjectDetector {
             classifier,
             input_size: 640,
@@ -200,7 +208,7 @@ impl Processor for ObjectDetector {
         mut output: ProcessorWriter<Self::OUTPUT>,
     ) -> Result<(), RustedPipeError> {
         let image_packet = &input.c1().unwrap();
-        println!("CAR Image {}", image_packet.version.timestamp_ns);
+        println!("Object Detection {}", image_packet.version.timestamp_ns);
 
         let image = &image_packet.data;
 
@@ -223,6 +231,7 @@ impl Processor for ObjectDetector {
         let output_names = self.classifier.get_unconnected_out_layers_names().unwrap();
 
         let mut output_values = Vector::<Mat>::default();
+
         self.classifier
             .forward(&mut output_values, &output_names)
             .unwrap();
@@ -236,7 +245,6 @@ impl Processor for ObjectDetector {
             .c1()
             .write(out, &image_packet.version)
             .unwrap();
-
         Ok(())
     }
 }

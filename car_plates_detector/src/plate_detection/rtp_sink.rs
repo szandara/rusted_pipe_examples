@@ -38,11 +38,15 @@ pub fn create_caps(width: usize, height: usize, fps: usize) -> Caps {
 }
 
 impl RtpSink {
-    pub fn new(fps: usize) -> Self {
+    pub fn new(fps: usize, host: &str, port: usize) -> Self {
         gstreamer::init().unwrap();
+        // let pipeline_str = format!(
+        //     "appsrc ! videoconvert ! x264enc ! mpegtsmux ! filesink location=file.mp4"
+        // );
         let pipeline_str =
-            "appsrc ! videoconvert ! x264enc ! mpegtsmux ! udpsink host=host.docker.internal port=5000";
-        let pipeline = parse_launch(pipeline_str)
+            &format!("appsrc ! videoconvert ! x264enc ! mpegtsmux ! udpsink host={host} port={port}");
+
+        let pipeline = parse_launch(&pipeline_str)
             .expect(format!("Cannot create pipeline {pipeline_str}").as_str());
 
         let pipeline = pipeline.dynamic_cast::<gstreamer::Pipeline>().unwrap();
@@ -52,7 +56,7 @@ impl RtpSink {
             .and_dynamic_cast::<gstreamer_app::AppSrc>()
             .expect("Cannot create AppSrc");
 
-        app_src.set_caps(Some(&create_caps(640, 480, fps)));
+        app_src.set_caps(Some(&create_caps(1280, 720, fps)));
         app_src.set_format(gstreamer::Format::Time);
         let id = "rtp_sink".to_string();
 
@@ -60,7 +64,7 @@ impl RtpSink {
             .set_state(gstreamer::State::Playing)
             .expect("Unable to set the pipeline to the `Playing` state");
 
-        let buffer = Buffer::with_size(640 * 480 * 3).expect("Cannot create gst buffer");
+        let buffer = Buffer::with_size(1280 * 720 * 3).expect("Cannot create gst buffer");
         let (buffer_s, buffer_r) = channel();
         let sink = Self {
             id,
@@ -117,7 +121,7 @@ impl TerminalProcessor for RtpSink {
             self.buffer.make_mut().set_duration(duration);
             self.buffer.make_mut().set_pts(pts);
             self.buffer.make_mut().set_dts(pts);
-
+            println!("RTP Sinked frame {}", image.version.timestamp_ns);
             self.buffer_s
                 .send(self.buffer.copy())
                 .expect("Cannot write to AppSrc");

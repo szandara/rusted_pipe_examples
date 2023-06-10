@@ -90,13 +90,13 @@ let consumer = TerminalNode::create_common(
 
 Link the processors together
 ```
-rusted_pipe::graph::graph::link(
+rusted_pipe::graph::build::link(
     slow_producer.write_channel.writer.c1(),
     consumer.read_channel.channels.lock().unwrap().c1(),
 )
 .unwrap();
 
-rusted_pipe::graph::graph::link(
+rusted_pipe::graph::build::link(
     fast_producer.write_channel.writer.c1(),
     consumer.read_channel.channels.lock().unwrap().c2(),
 )
