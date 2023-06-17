@@ -20,7 +20,7 @@ fn setup_test() -> Graph {
     // Node that reads the data from the input file
     let mut video_input_node = SourceNode::create_common(
         "video_input".to_string(),
-        Box::new(VideoReader::default(true, 25)),
+        Box::new(VideoReader::default(true, 22)),
     );
 
     let realtime_synch = RealTimeSynchronizer::new(1e8 as u128, true, false);
@@ -73,7 +73,7 @@ fn setup_test() -> Graph {
     // Node that collects the inferred information and overlays it on top of the original video.
     let rtp_node = TerminalNode::create_common(
         "rtp".to_string(),
-        Box::new(RtpSink::new(20, "172.23.208.1", 5000)),
+        Box::new(RtpSink::new(6, "172.23.208.1", 5000)),
         false,
         200,
         1,

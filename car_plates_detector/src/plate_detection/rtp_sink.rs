@@ -44,7 +44,7 @@ impl RtpSink {
         //     "appsrc ! videoconvert ! x264enc ! mpegtsmux ! filesink location=file.mp4"
         // );
         let pipeline_str =
-            &format!("appsrc ! videoconvert ! x264enc ! mpegtsmux ! udpsink host={host} port={port}");
+            &format!("appsrc ! videoconvert ! x264enc tune=zerolatency bitrate=500 speed-preset=superfast ! rtph264pay ! udpsink host={host} port={port}");
 
         let pipeline = parse_launch(&pipeline_str)
             .expect(format!("Cannot create pipeline {pipeline_str}").as_str());

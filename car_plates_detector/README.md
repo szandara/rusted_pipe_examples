@@ -1,7 +1,13 @@
 
 ## Car Plate Reader
 
-This is a more complex pipeline that reads realtime or offline car plates from a road video feed.
+This is a complex pipeline that reads realtime or offline car plates from a road video feed.
+
+Car detector and OCR can run in parallel as they work on the data independently but they produce at different speed. We can also run the sequential but the overall throughput would be slower.
+Finally the result could look like this depending on the synchronization strategy (more on this below).
+
+<img src="docs/offline.gif" width="500" height="320">
+
 
 ## Installation
 
@@ -18,3 +24,15 @@ Gstreamer
 Finally run
 
 `cargo build`
+
+## Run
+
+Run (rtp output)
+
+`cargo run --bin cars_realtime_wait`
+
+or
+
+Run (offline processing)
+
+`cargo run --bin cars_offline`
