@@ -10,7 +10,7 @@ path = "src/lib.rs"
 
 [dependencies]
 opencv = "0.75"
-rusted_pipe = { path = "../../rusted_pipe/" }
+rusted_pipe =  { git = "https://github.com/szandara/rusted_pipe.git", tag = "0.0.1" }
 crossbeam = {version = "0.8.1"}
 spin_sleep = { version = "^1.1.1" }
 gstreamer = "^0.20.0"

@@ -2340,6 +2340,7 @@ dependencies = [
 [[package]]
 name = "rusted_pipe"
 version = "0.1.0"
+source = "git+https://github.com/szandara/rusted_pipe.git?tag=0.0.1#b9c3b0f1dea23a51d2b89aeee164f761dd149cfc"
 dependencies = [
  "anyhow",
  "approx 0.4.0",

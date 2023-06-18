@@ -12,8 +12,8 @@ path = "src/lib.rs"
 opencv = { version = "0.81.5", features = ["clang-runtime"]}
 leptess = "0.14.0"
 tesseract-plumbing = "0.8.0"
-rusted_pipe = { path = "../../rusted_pipe/" }
-crossbeam = {version = "0.8.1"}
+rusted_pipe =  { git = "https://github.com/szandara/rusted_pipe.git", tag = "0.0.1" }
+crossbeam = { version = "0.8.1"}
 spin_sleep = { version = "^1.1.1" }
 gstreamer = "^0.20.0"
 gstreamer-app = "^0.20.0"
